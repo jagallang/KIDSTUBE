@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/storage_service.dart';
 import '../services/youtube_service.dart';
+import 'background_refresh_settings_screen.dart';
 
 class ApiSettingsScreen extends StatefulWidget {
   const ApiSettingsScreen({Key? key}) : super(key: key);
@@ -379,6 +380,27 @@ class _ApiSettingsScreenState extends State<ApiSettingsScreen> {
 
             // 저장된 API 키 섹션
             _buildSavedApiKey(),
+            
+            const SizedBox(height: 24),
+            
+            // 백그라운드 새로고침 설정 버튼
+            Card(
+              elevation: 2,
+              child: ListTile(
+                leading: const Icon(Icons.refresh, color: Colors.blue),
+                title: const Text('백그라운드 새로고침 설정'),
+                subtitle: const Text('API 사용량 관리 및 자동 새로고침 설정'),
+                trailing: const Icon(Icons.arrow_forward_ios),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const BackgroundRefreshSettingsScreen(),
+                    ),
+                  );
+                },
+              ),
+            ),
 
             const SizedBox(height: 32),
           ],

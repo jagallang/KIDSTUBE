@@ -6,6 +6,7 @@ import '../models/video.dart';
 import '../models/recommendation_weights.dart';
 import '../core/interfaces/i_youtube_service.dart';
 import '../core/debug_logger.dart';
+import '../core/api_usage_tracker.dart';
 
 class YouTubeService implements IYouTubeService {
   final String apiKey;
@@ -21,74 +22,51 @@ class YouTubeService implements IYouTubeService {
     }
     
     try {
-      // 1단계: 채널 검색
-      final searchResponse = await http.get(
-        Uri.parse('$baseUrl/search').replace(queryParameters: {
-          'part': 'snippet',
-          'type': 'channel',
-          'q': query,
-          'key': apiKey,
-          'maxResults': '25',
-        }),
-      );
-
-      if (searchResponse.statusCode != 200) {
-        print('Search API error: ${searchResponse.statusCode}');
-        return [];
-      }
-
-      final searchData = json.decode(searchResponse.body);
-      final searchItems = searchData['items'] as List? ?? [];
+      // API 사용량 최적화: search.list 대신 직접 채널 ID로 조회
+      // 일반적인 키즈 채널들을 미리 정의하여 검색
+      final predefinedChannels = _getPredefinedKidsChannels();
       
-      if (searchItems.isEmpty) {
-        return [];
-      }
-
-      // 2단계: 채널 ID들 수집
-      final channelIds = <String>[];
-      for (final item in searchItems) {
-        String channelId = '';
-        if (item['id'] is String) {
-          channelId = item['id'];
-        } else if (item['id'] is Map && item['id']['channelId'] != null) {
-          channelId = item['id']['channelId'];
-        } else if (item['snippet'] != null && item['snippet']['channelId'] != null) {
-          channelId = item['snippet']['channelId'];
+      // 검색어와 매칭되는 사전 정의 채널 찾기
+      final matchingChannels = predefinedChannels.where((channel) =>
+        channel['title']!.toLowerCase().contains(query.toLowerCase()) ||
+        channel['keywords']!.toLowerCase().contains(query.toLowerCase())
+      ).toList();
+      
+      if (matchingChannels.isNotEmpty) {
+        // API 사용량 체크
+        final canCall = await ApiUsageTracker.trackApiCall('channels.list');
+        if (!canCall) {
+          print('API 일일 제한 도달 - 채널 검색 차단');
+          return [];
         }
         
-        if (channelId.isNotEmpty && !channelIds.contains(channelId)) {
-          channelIds.add(channelId);
+        // 매칭된 채널 ID들로 직접 조회 (1 unit per request)
+        final channelIds = matchingChannels.map((c) => c['id']!).take(10).join(',');
+        
+        final response = await http.get(
+          Uri.parse('$baseUrl/channels').replace(queryParameters: {
+            'part': 'snippet,statistics,contentDetails',
+            'id': channelIds,
+            'key': apiKey,
+          }),
+        );
+        
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          final items = data['items'] as List? ?? [];
+          final channels = items.map((item) => Channel.fromJson(item)).toList();
+          
+          // 구독자 수 1만명 이상인 채널만 필터링
+          return channels.where((channel) {
+            final subscriberCount = _parseSubscriberCount(channel.subscriberCount);
+            return subscriberCount >= 10000;
+          }).toList();
         }
       }
-
-      if (channelIds.isEmpty) {
-        return searchItems.map((item) => Channel.fromJson(item)).toList();
-      }
-
-      // 3단계: 채널 상세 정보 (구독자 수 포함) 가져오기
-      final channelsResponse = await http.get(
-        Uri.parse('$baseUrl/channels').replace(queryParameters: {
-          'part': 'snippet,statistics,contentDetails',
-          'id': channelIds.join(','),
-          'key': apiKey,
-        }),
-      );
-
-      if (channelsResponse.statusCode == 200) {
-        final channelsData = json.decode(channelsResponse.body);
-        final channelItems = channelsData['items'] as List? ?? [];
-        final channels = channelItems.map((item) => Channel.fromJson(item)).toList();
-        
-        // 구독자 수 1만명 이상인 채널만 필터링
-        return channels.where((channel) {
-          final subscriberCount = _parseSubscriberCount(channel.subscriberCount);
-          return subscriberCount >= 10000;
-        }).toList();
-      } else {
-        print('Channels API error: ${channelsResponse.statusCode}');
-        // 구독자 수 없이라도 기본 정보 반환
-        return searchItems.map((item) => Channel.fromJson(item)).toList();
-      }
+      
+      // 사전 정의된 채널이 없을 경우 빈 결과 반환 (API 호출 없음)
+      return [];
+      
     } catch (e) {
       print('Error searching channels: $e');
       return [];
@@ -124,6 +102,13 @@ class YouTubeService implements IYouTubeService {
         params['pageToken'] = pageToken;
       }
 
+      // API 사용량 체크
+      final canCall = await ApiUsageTracker.trackApiCall('playlistItems.list');
+      if (!canCall) {
+        DebugLogger.logError('YouTubeService.getChannelVideos: API 일일 제한 도달', 'API daily limit reached');
+        return [];
+      }
+      
       DebugLogger.logFlow('YouTubeService.getChannelVideos: making API call', data: {
         'url': '$baseUrl/playlistItems',
         'playlistId': uploadsPlaylistId
@@ -416,6 +401,13 @@ class YouTubeService implements IYouTubeService {
     }
     
     try {
+      // API 사용량 체크
+      final canCall = await ApiUsageTracker.trackApiCall('channels.list');
+      if (!canCall) {
+        print('API 일일 제한 도달 - 채널 상세정보 조회 차단');
+        return [];
+      }
+      
       final response = await http.get(
         Uri.parse('$baseUrl/channels').replace(queryParameters: {
           'part': 'snippet,statistics,contentDetails',
@@ -498,6 +490,42 @@ class YouTubeService implements IYouTubeService {
     }
   }
 
+  // 사전 정의된 키즈 채널 목록
+  List<Map<String, String>> _getPredefinedKidsChannels() {
+    return [
+      {'id': 'UCcdwLMPsaU2ezNSJU1nFoBQ', 'title': '핑크퉁 (한국어 - Pinkfong)', 'keywords': '핑크퉁 pinkfong 동요 상어가족'},
+      {'id': 'UCZx3nJJ9lFLJkN8pGtuM4DA', 'title': '뿐로로(Pororo)', 'keywords': '뿐로로 pororo 크롱 루피 패티'},
+      {'id': 'UCOJplhB0wGQWv9OuRmMT-4g', 'title': 'Tayo 타요', 'keywords': '타요 tayo 버스 꼬마버스'},
+      {'id': 'UCJplp6SdfOJI0P0VXYlW8GA', 'title': '브레드이발바닥', 'keywords': '브레드 이발바닥 빵'},
+      {'id': 'UCQ5xK8p4KbmgAqL0AIIN5GA', 'title': '아기상어 올리 브루크린', 'keywords': '아기상어 올리 브루크린 babyshark'},
+      {'id': 'UC9VvlCrMIXfzu7qEekEGM-Q', 'title': '다이노코', 'keywords': '다이노코 공룡 dinosaur'},
+      {'id': 'UCfrr0mYePKXMIvUJ7NXrX_w', 'title': '코코몹', 'keywords': '코코몹 cocomong'},
+      {'id': 'UCUVTlX2eN-CUf-6Qe1WW5_A', 'title': 'BabyBus', 'keywords': '베이비버스 babybus 키키 미미'},
+      {'id': 'UCqiI-lakOzZ1wKI8vR1k-1A', 'title': '토모키즈', 'keywords': '토모키즈 tomokids'},
+      {'id': 'UCN0J5CaTaPv1gK6z5QjiLqg', 'title': '라인키즈', 'keywords': '라인키즈 linekids 라인프렌즈'},
+      {'id': 'UC1dLf3cC9RN8vN8W7xWi-3Q', 'title': '지니키즈', 'keywords': '지니키즈 jinikids 지니'},
+      {'id': 'UC8IRcpAuFPHR93XwBAXc5fw', 'title': '캐리와 장난감 친구들', 'keywords': '캐리 캐리와장난감친구들 carrie'},
+      {'id': 'UCCQnm2HEs5DWQGOdKvLY_gg', 'title': '시크릿쥬쥬', 'keywords': '시크릿쥬쥬 secret jouju'},
+      {'id': 'UCfrr6P7t8eJ94FfTJXTaU0Q', 'title': '프리티큐어', 'keywords': '프리티큐어 prettycure'},
+      {'id': 'UCLkAepWjdylmXSltofFvsYQ', 'title': 'BANGTANTV', 'keywords': 'bts 방탄소년단 bangtantv'},
+      {'id': 'UCX6OQ3DkcsbYNE6H8uQQuVA', 'title': 'MrBeast', 'keywords': 'mrbeast 미스터비스트'},
+      {'id': 'UCEDkO7wshcDZ7UZo17rPkzQ', 'title': '보람튜브', 'keywords': '보람튜브 boram 보람'},
+      {'id': 'UCF39xPmlr1Ds5WShxpKDwqg', 'title': '도티도티', 'keywords': '도티도티 dotty 도티'},
+      {'id': 'UCp9w2H88dy-GinZXe8nyx-Q', 'title': '포켓몹', 'keywords': '포켓몹 pokemonkids 포켓몬'},
+      {'id': 'UCnWWLTNKFJT7SPD_mXdvCHw', 'title': '레고', 'keywords': '레고 lego 레고키즈'},
+      {'id': 'UCY2qt3dw2TQJxvBrDiYGHdQ', 'title': 'Pink Pong', 'keywords': 'pinkpong 핑크퐁 영어'},
+      {'id': 'UCSKhg6h-n4tiq_POc8JJ0JQ', 'title': '토이푸딩', 'keywords': '토이푸딩 toypudding 장난감'},
+      {'id': 'UCl-0hm5_RkuNwGjHrO1K5HQ', 'title': '수리네 미니어처', 'keywords': '수리 미니어처 장난감'},
+      {'id': 'UCHYd3mCvTUVHcUwXCjOKOZA', 'title': '키네틱샌드', 'keywords': '키네틱샌드 kinetic sand 모래놀이'},
+      {'id': 'UCcdI9y0Fp1XY0CAKoq3tJJA', 'title': '오은영키즈', 'keywords': '오은영 키즈 영어 교육'},
+      {'id': 'UCJNgT0vsJy1hDy1LUmR7LYw', 'title': '앤게임', 'keywords': '앤게임 게임 로블록스'},
+      {'id': 'UCKfFErjlYqK1az8VXUrp7Pw', 'title': '파니의 텔레토비', 'keywords': '파니 텔레토비 pani'},
+      {'id': 'UCcCjxqZQKMPPmPO73315P9g', 'title': '수리수리 마수리', 'keywords': '수리수리마수리 마술 트릭'},
+      {'id': 'UCQ5YRbtOym9jiw2oe4RqiEA', 'title': '블리피', 'keywords': '블리피 blippi 영어교육'},
+      {'id': 'UC7fyfh_A3aIidNRddmM7-8Q', 'title': 'CoComelon', 'keywords': 'cocomelon 코코멜론 영어동요'}
+    ];
+  }
+  
   // 테스트용 더미 채널 데이터
   List<Channel> _getDummyChannels(String query) {
     final channels = [

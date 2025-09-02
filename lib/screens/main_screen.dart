@@ -41,13 +41,12 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    if (state == AppLifecycleState.resumed) {
-      // 앱이 포그라운드에서 돌아오면 백그라운드 갱신 시작
-      _backgroundRefreshManager.startBackgroundRefresh();
-    } else if (state == AppLifecycleState.paused) {
-      // 앱이 백그라운드로 가면 백그라운드 갱신 중지
-      _backgroundRefreshManager.stopBackgroundRefresh();
-    }
+    // 백그라운드 새로고침 비활성화 (API 사용량 절약)
+    // if (state == AppLifecycleState.resumed) {
+    //   _backgroundRefreshManager.startBackgroundRefresh();
+    // } else if (state == AppLifecycleState.paused) {
+    //   _backgroundRefreshManager.stopBackgroundRefresh();
+    // }
   }
 
   void _initializeProviders() {
@@ -72,8 +71,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       await _videoProvider.loadVideos();
       await _recommendationProvider.loadWeights();
       
-      // Start background refresh system
-      _backgroundRefreshManager.startBackgroundRefresh();
+      // 백그라운드 새로고침 비활성화 (API 사용량 절약)
+      // _backgroundRefreshManager.startBackgroundRefresh();
       
       // Clean old analytics data periodically
       await CacheAnalytics.cleanOldAnalytics();

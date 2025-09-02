@@ -3,30 +3,30 @@ import '../models/channel.dart';
 /// Smart cache manager for differentiated TTL strategies
 /// Provides optimized caching durations based on data types and usage patterns
 class SmartCacheManager {
-  /// Cache duration strategies for different data types
+  /// Cache duration strategies for different data types (더 공격적인 캐싱)
   static const Map<CacheType, Duration> _cacheDurations = {
-    CacheType.channelSearch: Duration(days: 7),        // Channel info rarely changes
-    CacheType.videoList: Duration(hours: 12),          // New videos consideration
-    CacheType.popularVideos: Duration(hours: 6),       // Popular channels update more frequently  
-    CacheType.channelDetails: Duration(days: 1),       // Subscriber counts change slowly
-    CacheType.userSubscriptions: Duration(days: 30),   // User managed data
-    CacheType.recommendationWeights: Duration(days: 30), // User settings
+    CacheType.channelSearch: Duration(days: 30),       // 채널 정보는 거의 변하지 않음
+    CacheType.videoList: Duration(days: 3),            // 비디오 목록을 3일간 캐싱
+    CacheType.popularVideos: Duration(days: 2),        // 인기 채널도 2일간 캐싱
+    CacheType.channelDetails: Duration(days: 7),       // 구독자 수는 천천히 변함
+    CacheType.userSubscriptions: Duration(days: 30),   // 사용자 관리 데이터
+    CacheType.recommendationWeights: Duration(days: 30), // 사용자 설정
   };
 
   /// Get cache duration for specific data type
   static Duration getCacheDuration(CacheType type, {Map<String, dynamic>? context}) {
-    // Smart TTL based on channel popularity
+    // 인기 채널도 더 긴 캐시 적용 (API 절약)
     if (type == CacheType.videoList && context != null) {
       final subscriberCount = _parseSubscriberCount(context['subscriberCount'] ?? '0');
       
-      // Popular channels (1M+ subscribers) get shorter cache for fresher content
-      if (subscriberCount >= 1000000) {
-        return const Duration(hours: 6);
+      // 매우 인기있는 채널 (5M+ 구독자)도 최소 1일 캐싱
+      if (subscriberCount >= 5000000) {
+        return const Duration(days: 1);
       }
       
-      // Very popular channels (5M+ subscribers) get even shorter cache
-      if (subscriberCount >= 5000000) {
-        return const Duration(hours: 3);
+      // 인기 채널 (1M+ 구독자)은 2일 캐싱
+      if (subscriberCount >= 1000000) {
+        return const Duration(days: 2);
       }
     }
     
