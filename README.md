@@ -5,7 +5,7 @@
 [![Flutter Version](https://img.shields.io/badge/Flutter-3.29.2-blue.svg)](https://flutter.dev)
 [![Dart Version](https://img.shields.io/badge/Dart-3.7.2-blue.svg)](https://dart.dev)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-2.0.0-orange.svg)](https://github.com/yourusername/kidstube/releases)
+[![Version](https://img.shields.io/badge/Version-1.1.04-orange.svg)](https://github.com/yourusername/kidstube/releases)
 
 ## 📱 소개
 
@@ -22,7 +22,7 @@ KidsTube는 부모가 안심하고 자녀에게 보여줄 수 있는 교육적�
 
 ## 🏗️ 아키텍처
 
-### Clean Architecture (v2.0.0)
+### Clean Architecture (v1.1.04)
 
 ```
 lib/
@@ -129,11 +129,15 @@ dependencies:
 
 ## 🔄 버전 히스토리
 
-### v2.0.0 (2024-01-XX)
+### v1.1.04 (2024-01-XX)
 - 🏗️ Clean Architecture 전면 적용
 - 💉 의존성 주입 시스템 구현
 - ⚡ Selector 패턴을 통한 성능 최적화
 - 🔧 SOLID 원칙 기반 리팩토링
+
+### v1.0.3 (2024-01-XX)
+- 코드 품질 메트릭 추가
+- 문서화 개선
 
 ### v1.0.2 (2024-01-XX)
 - Provider 상태 관리 구현
