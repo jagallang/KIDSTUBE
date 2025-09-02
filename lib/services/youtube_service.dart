@@ -4,13 +4,15 @@ import 'package:http/http.dart' as http;
 import '../models/channel.dart';
 import '../models/video.dart';
 import '../models/recommendation_weights.dart';
+import '../core/interfaces/i_youtube_service.dart';
 
-class YouTubeService {
+class YouTubeService implements IYouTubeService {
   final String apiKey;
   final String baseUrl = 'https://www.googleapis.com/youtube/v3';
 
   YouTubeService({required this.apiKey});
 
+  @override
   Future<List<Channel>> searchChannels(String query) async {
     // 테스트 모드일 때 더미 데이터 반환
     if (apiKey == 'TEST_API_KEY') {
@@ -92,6 +94,7 @@ class YouTubeService {
     }
   }
 
+  @override
   Future<List<Video>> getChannelVideos(String uploadsPlaylistId, {String? pageToken}) async {
     // 테스트 모드일 때 더미 데이터 반환
     if (apiKey == 'TEST_API_KEY') {
@@ -143,6 +146,7 @@ class YouTubeService {
   }
 
   // 가중치 기반 추천 영상 가져오기
+  @override
   Future<List<Video>> getWeightedRecommendedVideos(
     List<Channel> channels, 
     RecommendationWeights weights
@@ -256,6 +260,39 @@ class YouTubeService {
     return result;
   }
 
+  @override
+  Future<List<Channel>> getChannelDetails(List<String> channelIds) async {
+    if (channelIds.isEmpty) return [];
+    
+    // 테스트 모드일 때 더미 데이터 반환
+    if (apiKey == 'TEST_API_KEY') {
+      return _getDummyChannelDetails(channelIds);
+    }
+    
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/channels').replace(queryParameters: {
+          'part': 'snippet,statistics,contentDetails',
+          'id': channelIds.join(','),
+          'key': apiKey,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final items = data['items'] as List? ?? [];
+        return items.map((item) => Channel.fromJson(item)).toList();
+      } else {
+        print('Get channel details error: ${response.statusCode}');
+        return [];
+      }
+    } catch (e) {
+      print('Error getting channel details: $e');
+      return [];
+    }
+  }
+
+  @override
   Future<bool> validateApiKey() async {
     // 테스트 모드는 항상 유효
     if (apiKey == 'TEST_API_KEY') {
@@ -362,6 +399,12 @@ class YouTubeService {
       ).toList();
     }
     return channels;
+  }
+
+  // 테스트용 더미 채널 상세 데이터
+  List<Channel> _getDummyChannelDetails(List<String> channelIds) {
+    final allChannels = _getDummyChannels('');
+    return allChannels.where((channel) => channelIds.contains(channel.id)).toList();
   }
 
   // 테스트용 더미 비디오 데이터

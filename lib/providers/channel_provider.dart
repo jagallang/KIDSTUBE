@@ -1,114 +1,130 @@
-import 'package:flutter/foundation.dart';
 import '../models/channel.dart';
-import '../services/youtube_service.dart';
-import '../services/storage_service.dart';
+import '../core/base_provider.dart';
+import '../core/interfaces/i_youtube_service.dart';
+import '../core/interfaces/i_storage_service.dart';
 
-class ChannelProvider extends ChangeNotifier {
-  YouTubeService? _youtubeService;
+/// Channel provider with clean architecture and dependency injection
+/// Manages channel subscriptions and search functionality
+class ChannelProvider extends CacheableProvider<List<Channel>> {
+  final IYouTubeService _youtubeService;
+  final IStorageService _storageService;
+  
   List<Channel> _subscribedChannels = [];
   List<Channel> _searchResults = [];
-  bool _isLoading = false;
   bool _isSearching = false;
-  String? _error;
 
-  List<Channel> get subscribedChannels => _subscribedChannels;
-  List<Channel> get searchResults => _searchResults;
-  bool get isLoading => _isLoading;
+  List<Channel> get subscribedChannels => List.unmodifiable(_subscribedChannels);
+  List<Channel> get searchResults => List.unmodifiable(_searchResults);
   bool get isSearching => _isSearching;
-  String? get error => _error;
   bool get hasSubscribedChannels => _subscribedChannels.isNotEmpty;
 
-  void setApiKey(String apiKey) {
-    _youtubeService = YouTubeService(apiKey: apiKey);
-    notifyListeners();
+  ChannelProvider({
+    required IYouTubeService youtubeService,
+    required IStorageService storageService,
+  }) : _youtubeService = youtubeService,
+       _storageService = storageService {
+    setCacheTimeout(const Duration(hours: 1));
   }
 
+  /// Load subscribed channels
   Future<void> loadSubscribedChannels() async {
-    _setLoading(true);
-    _clearError();
-
-    try {
-      _subscribedChannels = await StorageService.getChannels();
-    } catch (e) {
-      _setError('구독 채널을 불러오는데 실패했습니다: ${e.toString()}');
-    } finally {
-      _setLoading(false);
-    }
+    await executeOperation<void>(
+      () async {
+        _subscribedChannels = await _storageService.loadChannels();
+        updateCacheTimestamp();
+      },
+      errorPrefix: '구독 채널을 불러오는데 실패했습니다',
+    );
   }
 
+  /// Search channels with filtering
   Future<void> searchChannels(String query) async {
-    if (_youtubeService == null || query.trim().isEmpty) {
+    if (query.trim().isEmpty) {
       _searchResults.clear();
+      _isSearching = false;
       notifyListeners();
       return;
     }
 
-    _setSearching(true);
-    _clearError();
+    _isSearching = true;
+    notifyListeners();
 
     try {
-      final results = await _youtubeService!.searchChannels(query);
+      final results = await _youtubeService.searchChannels(query);
       
-      // 구독자 1만명 이하 채널 필터링
+      // Filter channels with less than 10k subscribers
       _searchResults = results.where((channel) {
-        final subscribers = int.tryParse(channel.subscriberCount.replaceAll(RegExp(r'[^\d]'), '')) ?? 0;
+        final subscribers = _parseSubscriberCount(channel.subscriberCount);
         return subscribers >= 10000;
       }).toList();
+      
+      _isSearching = false;
+      notifyListeners();
     } catch (e) {
-      _setError('채널 검색에 실패했습니다: ${e.toString()}');
+      _isSearching = false;
+      setError('채널 검색에 실패했습니다: ${e.toString()}');
       _searchResults.clear();
-    } finally {
-      _setSearching(false);
     }
   }
 
+  /// Subscribe to a channel
   Future<void> subscribeToChannel(Channel channel) async {
-    try {
-      // 이미 구독중인지 확인
-      if (_subscribedChannels.any((c) => c.id == channel.id)) {
-        return;
-      }
+    await executeOperation<void>(
+      () async {
+        // Check if already subscribed
+        if (_subscribedChannels.any((c) => c.id == channel.id)) {
+          return;
+        }
 
-      // 저장소에 추가
-      final updatedChannels = [..._subscribedChannels, channel];
-      await StorageService.saveChannels(updatedChannels);
-      
-      // 로컬 상태 업데이트
-      _subscribedChannels = updatedChannels;
-      notifyListeners();
-    } catch (e) {
-      _setError('채널 구독에 실패했습니다: ${e.toString()}');
-    }
+        final updatedChannels = [..._subscribedChannels, channel];
+        await _storageService.storeChannels(updatedChannels);
+        
+        _subscribedChannels = updatedChannels;
+        updateCacheTimestamp();
+      },
+      showLoading: false,
+      errorPrefix: '채널 구독에 실패했습니다',
+    );
   }
 
+  /// Unsubscribe from a channel
   Future<void> unsubscribeFromChannel(String channelId) async {
-    try {
-      // 저장소에서 제거
-      final updatedChannels = _subscribedChannels.where((c) => c.id != channelId).toList();
-      await StorageService.saveChannels(updatedChannels);
-      
-      // 로컬 상태 업데이트
-      _subscribedChannels = updatedChannels;
-      notifyListeners();
-    } catch (e) {
-      _setError('채널 구독 해제에 실패했습니다: ${e.toString()}');
-    }
+    await executeOperation<void>(
+      () async {
+        final updatedChannels = _subscribedChannels
+            .where((c) => c.id != channelId)
+            .toList();
+        
+        await _storageService.storeChannels(updatedChannels);
+        
+        _subscribedChannels = updatedChannels;
+        updateCacheTimestamp();
+      },
+      showLoading: false,
+      errorPrefix: '채널 구독 해제에 실패했습니다',
+    );
   }
 
+  /// Check if subscribed to a channel
   bool isSubscribed(String channelId) {
     return _subscribedChannels.any((channel) => channel.id == channelId);
   }
 
+  /// Get channels by category
   List<Channel> getChannelsByCategory(String category) {
-    return _subscribedChannels.where((channel) {
-      return channel.category == category;
-    }).toList();
+    return _subscribedChannels
+        .where((channel) => channel.category == category)
+        .toList();
   }
 
+  /// Get category counts
   Map<String, int> getCategoryCounts() {
-    final counts = <String, int>{};
-    const categories = ['한글', '키즈', '만들기', '게임', '영어', '과학', '미술', '음악', '랜덤'];
+    const categories = [
+      '한글', '키즈', '만들기', '게임', '영어', 
+      '과학', '미술', '음악', '랜덤'
+    ];
     
+    final counts = <String, int>{};
     for (final category in categories) {
       counts[category] = getChannelsByCategory(category).length;
     }
@@ -116,28 +132,33 @@ class ChannelProvider extends ChangeNotifier {
     return counts;
   }
 
-  void _setLoading(bool loading) {
-    _isLoading = loading;
-    notifyListeners();
-  }
-
-  void _setSearching(bool searching) {
-    _isSearching = searching;
-    notifyListeners();
-  }
-
-  void _setError(String error) {
-    _error = error;
-    notifyListeners();
-  }
-
-  void _clearError() {
-    _error = null;
-    notifyListeners();
-  }
-
+  /// Clear search results
   void clearSearchResults() {
     _searchResults.clear();
+    _isSearching = false;
     notifyListeners();
+  }
+
+  /// Parse subscriber count from formatted string
+  int _parseSubscriberCount(String subscriberCountStr) {
+    final cleanedStr = subscriberCountStr.replaceAll(RegExp(r'[^\d.]'), '');
+    if (cleanedStr.isEmpty) return 0;
+
+    final value = double.tryParse(cleanedStr) ?? 0;
+    
+    if (subscriberCountStr.toLowerCase().contains('m')) {
+      return (value * 1000000).toInt();
+    } else if (subscriberCountStr.toLowerCase().contains('k')) {
+      return (value * 1000).toInt();
+    } else {
+      return value.toInt();
+    }
+  }
+
+  /// Refresh subscribed channels
+  Future<void> refreshSubscribedChannels() async {
+    setCacheTimeout(Duration.zero); // Force expiry
+    await loadSubscribedChannels();
+    setCacheTimeout(const Duration(hours: 1)); // Reset timeout
   }
 }

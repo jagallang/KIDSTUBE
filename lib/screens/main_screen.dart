@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../models/video.dart';
 import '../providers/video_provider.dart';
 import '../providers/channel_provider.dart';
+import '../providers/recommendation_provider.dart';
+import '../core/service_locator.dart';
 import 'pin_verification_screen.dart';
 import 'channel_management_screen.dart';
 import 'video_player_screen.dart';
@@ -21,16 +23,34 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
+  late VideoProvider _videoProvider;
+  late ChannelProvider _channelProvider;
+  late RecommendationProvider _recommendationProvider;
+
   @override
   void initState() {
     super.initState();
+    _initializeProviders();
+  }
+
+  void _initializeProviders() {
+    // Initialize services with API key
+    initializeWithApiKey(widget.apiKey);
+    
+    // Create providers with dependency injection
+    _channelProvider = ProviderFactory.createChannelProvider();
+    _videoProvider = ProviderFactory.createVideoProvider();
+    _recommendationProvider = ProviderFactory.createRecommendationProvider();
+    
+    // Set up provider relationships for reactive updates
+    _videoProvider.setChannelProvider(_channelProvider);
+    
+    // Load initial data
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final videoProvider = Provider.of<VideoProvider>(context, listen: false);
-      final channelProvider = Provider.of<ChannelProvider>(context, listen: false);
-      
-      videoProvider.setApiKey(widget.apiKey);
-      channelProvider.setApiKey(widget.apiKey);
-      videoProvider.loadVideos();
+      _channelProvider.loadSubscribedChannels().then((_) {
+        _videoProvider.loadVideos();
+      });
+      _recommendationProvider.loadWeights();
     });
   }
 
@@ -85,32 +105,35 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('KidsTube'),
-        backgroundColor: Colors.red,
-        foregroundColor: Colors.white,
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu),
-            onPressed: () => Scaffold.of(context).openDrawer(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: _videoProvider),
+        ChangeNotifierProvider.value(value: _channelProvider),
+        ChangeNotifierProvider.value(value: _recommendationProvider),
+      ],
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('KidsTube'),
+          backgroundColor: Colors.red,
+          foregroundColor: Colors.white,
+          leading: Builder(
+            builder: (context) => IconButton(
+              icon: const Icon(Icons.menu),
+              onPressed: () => Scaffold.of(context).openDrawer(),
+            ),
           ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.settings),
+              onPressed: _openParentSettings,
+            ),
+          ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: _openParentSettings,
-          ),
-        ],
-      ),
-      drawer: _buildDrawer(),
-      body: Consumer<VideoProvider>(
-        builder: (context, videoProvider, child) {
-          return RefreshIndicator(
-            onRefresh: () => videoProvider.refreshVideos(),
-            child: _buildBody(videoProvider),
-          );
-        },
+        drawer: _buildDrawer(),
+        body: RefreshIndicator(
+          onRefresh: () => _videoProvider.refreshVideos(),
+          child: _buildBodyWithSelectors(),
+        ),
       ),
     );
   }
@@ -353,7 +376,7 @@ class _MainScreenState extends State<MainScreen> {
             title: const Text('새로고침'),
             onTap: () {
               Navigator.pop(context);
-              Provider.of<VideoProvider>(context, listen: false).refreshVideos();
+              _videoProvider.refreshVideos();
             },
           ),
           const Divider(),
@@ -412,5 +435,141 @@ class _MainScreenState extends State<MainScreen> {
         ],
       ),
     );
+  }
+
+  /// Optimized body builder using Selector pattern for performance
+  Widget _buildBodyWithSelectors() {
+    return Column(
+      children: [
+        // Error state selector
+        Selector<VideoProvider, String?>(
+          selector: (context, provider) => provider.error,
+          builder: (context, error, child) {
+            if (error != null) {
+              return Container(
+                width: double.infinity,
+                margin: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.shade200),
+                ),
+                child: Column(
+                  children: [
+                    Icon(Icons.error_outline, color: Colors.red.shade700, size: 32),
+                    const SizedBox(height: 8),
+                    Text(
+                      error,
+                      style: TextStyle(color: Colors.red.shade700),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    ElevatedButton(
+                      onPressed: () => _videoProvider.loadVideos(),
+                      child: const Text('다시 시도'),
+                    ),
+                  ],
+                ),
+              );
+            }
+            return const SizedBox.shrink();
+          },
+        ),
+        
+        // Main content selector
+        Expanded(
+          child: Selector2<VideoProvider, ChannelProvider, ({bool isLoading, bool hasVideos, bool hasChannels})>(
+            selector: (context, videoProvider, channelProvider) => (
+              isLoading: videoProvider.isLoading,
+              hasVideos: videoProvider.hasVideos,
+              hasChannels: channelProvider.hasSubscribedChannels,
+            ),
+            builder: (context, state, child) {
+              if (state.isLoading) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              if (!state.hasChannels) {
+                return _buildNoChannelsState();
+              }
+
+              if (!state.hasVideos) {
+                return _buildNoVideosState();
+              }
+
+              return _buildVideoGrid();
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNoChannelsState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.subscriptions_outlined, size: 80, color: Colors.grey),
+          const SizedBox(height: 20),
+          const Text(
+            '구독한 채널이 없습니다',
+            style: TextStyle(fontSize: 18, color: Colors.grey),
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton.icon(
+            onPressed: _openParentSettings,
+            icon: const Icon(Icons.add),
+            label: const Text('채널 추가하기'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoVideosState() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.video_library_outlined, size: 80, color: Colors.grey),
+          SizedBox(height: 20),
+          Text(
+            '표시할 영상이 없습니다',
+            style: TextStyle(fontSize: 18, color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVideoGrid() {
+    return Selector<VideoProvider, List<Video>>(
+      selector: (context, provider) => provider.videos,
+      builder: (context, videos, child) {
+        return GridView.builder(
+          padding: const EdgeInsets.all(8),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            childAspectRatio: 16 / 14,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+          ),
+          itemCount: videos.length,
+          itemBuilder: (context, index) {
+            return _buildVideoCard(videos[index]);
+          },
+        );
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _videoProvider.dispose();
+    _channelProvider.dispose();
+    _recommendationProvider.dispose();
+    super.dispose();
   }
 }

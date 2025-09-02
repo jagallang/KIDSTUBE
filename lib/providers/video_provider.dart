@@ -1,101 +1,112 @@
-import 'package:flutter/foundation.dart';
 import '../models/video.dart';
-import '../models/channel.dart';
-import '../models/recommendation_weights.dart';
-import '../services/youtube_service.dart';
-import '../services/storage_service.dart';
+import '../core/base_provider.dart';
+import '../core/interfaces/i_youtube_service.dart';
+import '../core/interfaces/i_storage_service.dart';
+import 'channel_provider.dart';
 
-class VideoProvider extends ChangeNotifier {
-  YouTubeService? _youtubeService;
+/// Video provider with clean architecture and dependency injection
+/// Manages video state without tight coupling to channel state
+class VideoProvider extends CacheableProvider<List<Video>> {
+  final IYouTubeService _youtubeService;
+  final IStorageService _storageService;
+  
   List<Video> _videos = [];
-  List<Channel> _channels = [];
-  bool _isLoading = false;
-  bool _isRefreshing = false;
-  String? _error;
+  ChannelProvider? _channelProvider;
 
-  List<Video> get videos => _videos;
-  List<Channel> get channels => _channels;
-  bool get isLoading => _isLoading;
-  bool get isRefreshing => _isRefreshing;
-  String? get error => _error;
+  List<Video> get videos => List.unmodifiable(_videos);
   bool get hasVideos => _videos.isNotEmpty;
-  bool get hasChannels => _channels.isNotEmpty;
 
-  void setApiKey(String apiKey) {
-    _youtubeService = YouTubeService(apiKey: apiKey);
-    notifyListeners();
+  VideoProvider({
+    required IYouTubeService youtubeService,
+    required IStorageService storageService,
+  }) : _youtubeService = youtubeService,
+       _storageService = storageService {
+    setCacheTimeout(const Duration(minutes: 10));
   }
 
+  /// Set channel provider for reactive updates
+  void setChannelProvider(ChannelProvider channelProvider) {
+    _channelProvider = channelProvider;
+    // Listen to channel updates and refresh videos accordingly
+    _channelProvider?.addListener(_onChannelsChanged);
+  }
+
+  /// Handle channel changes
+  void _onChannelsChanged() {
+    if (_channelProvider?.subscribedChannels.isNotEmpty ?? false) {
+      if (isCacheExpired) {
+        refreshVideos();
+      }
+    }
+  }
+
+  /// Load videos with proper state management
   Future<void> loadVideos() async {
-    if (_youtubeService == null) return;
+    if (_channelProvider == null || _channelProvider!.subscribedChannels.isEmpty) {
+      _videos = [];
+      notifyListeners();
+      return;
+    }
 
-    _setLoading(true);
-    _clearError();
-
-    try {
-      _channels = await StorageService.getChannels();
-      
-      if (_channels.isNotEmpty) {
-        final weights = await StorageService.getRecommendationWeights();
-        final videos = await _youtubeService!.getWeightedRecommendedVideos(_channels, weights);
+    await executeOperation<void>(
+      () async {
+        final weights = await _storageService.getRecommendationWeights();
+        final videos = await _youtubeService.getWeightedRecommendedVideos(
+          _channelProvider!.subscribedChannels, 
+          weights,
+        );
         
         _videos = videos;
-      } else {
-        _videos = [];
-      }
-    } catch (e) {
-      _setError('영상을 불러오는데 실패했습니다: ${e.toString()}');
-    } finally {
-      _setLoading(false);
-    }
+        updateCacheTimestamp();
+      },
+      errorPrefix: '영상을 불러오는데 실패했습니다',
+    );
   }
 
+  /// Refresh videos with pull-to-refresh
   Future<void> refreshVideos() async {
-    if (_youtubeService == null) return;
+    if (_channelProvider == null || _channelProvider!.subscribedChannels.isEmpty) {
+      _videos = [];
+      notifyListeners();
+      return;
+    }
 
-    _setRefreshing(true);
-    _clearError();
-
-    try {
-      _channels = await StorageService.getChannels();
-      
-      if (_channels.isNotEmpty) {
-        final weights = await StorageService.getRecommendationWeights();
-        final videos = await _youtubeService!.getWeightedRecommendedVideos(_channels, weights);
+    await executeOperation<void>(
+      () async {
+        final weights = await _storageService.getRecommendationWeights();
+        final videos = await _youtubeService.getWeightedRecommendedVideos(
+          _channelProvider!.subscribedChannels, 
+          weights,
+        );
         
         _videos = videos;
-      } else {
-        _videos = [];
-      }
-    } catch (e) {
-      _setError('영상을 새로고침하는데 실패했습니다: ${e.toString()}');
-    } finally {
-      _setRefreshing(false);
-    }
+        updateCacheTimestamp();
+      },
+      isRefresh: true,
+      errorPrefix: '영상을 새로고침하는데 실패했습니다',
+    );
   }
 
-  void _setLoading(bool loading) {
-    _isLoading = loading;
-    notifyListeners();
-  }
-
-  void _setRefreshing(bool refreshing) {
-    _isRefreshing = refreshing;
-    notifyListeners();
-  }
-
-  void _setError(String error) {
-    _error = error;
-    notifyListeners();
-  }
-
-  void _clearError() {
-    _error = null;
-    notifyListeners();
-  }
-
+  /// Clear video cache
   void clearVideos() {
-    _videos.clear();
+    _videos = [];
+    updateCacheTimestamp();
     notifyListeners();
+  }
+
+  /// Force refresh ignoring cache
+  Future<void> forceRefresh() async {
+    setCacheTimeout(Duration.zero); // Force expiry
+    await loadVideos();
+    setCacheTimeout(const Duration(minutes: 10)); // Reset timeout
+  }
+
+  /// Check if has channels (used by UI)
+  bool get hasChannels => _channelProvider?.hasSubscribedChannels ?? false;
+
+  @override
+  void dispose() {
+    _channelProvider?.removeListener(_onChannelsChanged);
+    super.dispose();
   }
 }
