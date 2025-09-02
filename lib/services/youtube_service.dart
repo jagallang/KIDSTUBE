@@ -5,6 +5,7 @@ import '../models/channel.dart';
 import '../models/video.dart';
 import '../models/recommendation_weights.dart';
 import '../core/interfaces/i_youtube_service.dart';
+import '../core/debug_logger.dart';
 
 class YouTubeService implements IYouTubeService {
   final String apiKey;
@@ -96,9 +97,19 @@ class YouTubeService implements IYouTubeService {
 
   @override
   Future<List<Video>> getChannelVideos(String uploadsPlaylistId, {String? pageToken}) async {
+    DebugLogger.logFlow('YouTubeService.getChannelVideos started', data: {
+      'uploadsPlaylistId': uploadsPlaylistId,
+      'pageToken': pageToken,
+      'isTestMode': apiKey == 'TEST_API_KEY'
+    });
+    
     // 테스트 모드일 때 더미 데이터 반환
     if (apiKey == 'TEST_API_KEY') {
-      return _getDummyVideos(uploadsPlaylistId);
+      final dummyVideos = _getDummyVideos(uploadsPlaylistId);
+      DebugLogger.logFlow('YouTubeService.getChannelVideos: returning dummy videos', data: {
+        'videoCount': dummyVideos.length
+      });
+      return dummyVideos;
     }
     
     try {
@@ -113,19 +124,39 @@ class YouTubeService implements IYouTubeService {
         params['pageToken'] = pageToken;
       }
 
+      DebugLogger.logFlow('YouTubeService.getChannelVideos: making API call', data: {
+        'url': '$baseUrl/playlistItems',
+        'playlistId': uploadsPlaylistId
+      });
+
       // playlistItems.list 사용 - API 할당량 1단위만 소모 (기존 search.list는 100단위)
       final response = await http.get(
         Uri.parse('$baseUrl/playlistItems').replace(queryParameters: params),
       );
 
+      DebugLogger.logFlow('YouTubeService.getChannelVideos: API response received', data: {
+        'statusCode': response.statusCode,
+        'bodyLength': response.body.length
+      });
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final items = data['items'] as List? ?? [];
-        return items.map((item) => Video.fromPlaylistItem(item)).toList();
+        final videos = items.map((item) => Video.fromPlaylistItem(item)).toList();
+        
+        DebugLogger.logFlow('YouTubeService.getChannelVideos: videos parsed', data: {
+          'videoCount': videos.length,
+          'itemsCount': items.length
+        });
+        
+        return videos;
+      } else {
+        DebugLogger.logError('YouTubeService.getChannelVideos: API error', 
+          'Status: ${response.statusCode}, Body: ${response.body}');
+        return [];
       }
-      return [];
     } catch (e) {
-      print('Error getting channel videos: $e');
+      DebugLogger.logError('YouTubeService.getChannelVideos: Exception', e);
       return [];
     }
   }
@@ -151,15 +182,28 @@ class YouTubeService implements IYouTubeService {
     List<Channel> channels, 
     RecommendationWeights weights
   ) async {
+    DebugLogger.logFlow('YouTubeService.getWeightedRecommendedVideos started', data: {
+      'channelCount': channels.length,
+      'totalWeight': weights.total
+    });
+    
     if (channels.isEmpty || weights.total == 0) {
+      DebugLogger.logFlow('YouTubeService.getWeightedRecommendedVideos: using getCombinedVideos fallback');
       return getCombinedVideos(channels);
     }
 
     // 카테고리별 채널 분류
     final Map<String, List<Channel>> categorizedChannels = _categorizeChannels(channels);
+    DebugLogger.logFlow('YouTubeService.getWeightedRecommendedVideos: channels categorized', data: {
+      'categoryCounts': categorizedChannels.map((k, v) => MapEntry(k, v.length)),
+      'channelTitles': channels.map((c) => c.title).toList()
+    });
     
     // 카테고리별 영상 개수 계산
     final videoCounts = weights.getVideoCountsForTotal(20);
+    DebugLogger.logFlow('YouTubeService.getWeightedRecommendedVideos: video counts calculated', data: {
+      'videoCounts': videoCounts
+    });
     
     List<Video> recommendedVideos = [];
     
@@ -194,6 +238,12 @@ class YouTubeService implements IYouTubeService {
           if (categoryVideos.length >= targetCount) break;
           if (channel.uploadsPlaylistId.isNotEmpty) {
             final videos = await getChannelVideos(channel.uploadsPlaylistId);
+            DebugLogger.logFlow('YouTubeService.getWeightedRecommendedVideos: got channel videos', data: {
+              'category': category,
+              'channelTitle': channel.title,
+              'videoCount': videos.length,
+              'uploadsPlaylistId': channel.uploadsPlaylistId
+            });
             categoryVideos.addAll(videos);
           }
         }

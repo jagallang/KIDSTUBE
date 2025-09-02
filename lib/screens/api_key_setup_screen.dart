@@ -24,27 +24,43 @@ class _ApiKeySetupScreenState extends State<ApiKeySetupScreen> {
       });
       return;
     }
+    
+    // API 키 형식 기본 검증
+    if (!apiKey.startsWith('AIza') || apiKey.length < 30) {
+      setState(() {
+        _errorMessage = 'YouTube API 키 형식이 올바르지 않습니다 (AIza로 시작해야 함)';
+      });
+      return;
+    }
 
     setState(() {
       _isValidating = true;
       _errorMessage = null;
     });
 
-    final service = YouTubeService(apiKey: apiKey);
-    final isValid = await service.validateApiKey();
+    try {
+      final service = YouTubeService(apiKey: apiKey);
+      final isValid = await service.validateApiKey();
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    if (isValid) {
-      await StorageService.saveApiKey(apiKey);
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => PinSetupScreen(apiKey: apiKey)),
-      );
-    } else {
+      if (isValid) {
+        await StorageService.saveApiKey(apiKey);
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => PinSetupScreen(apiKey: apiKey)),
+        );
+      } else {
+        setState(() {
+          _isValidating = false;
+          _errorMessage = 'API 키가 유효하지 않거나 YouTube Data API v3가 활성화되지 않았습니다';
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
       setState(() {
         _isValidating = false;
-        _errorMessage = '유효하지 않은 API 키입니다';
+        _errorMessage = 'API 키 검증 중 오류가 발생했습니다: ${e.toString()}';
       });
     }
   }
@@ -113,18 +129,44 @@ class _ApiKeySetupScreenState extends State<ApiKeySetupScreen> {
                     )
                   : const Text('다음', style: TextStyle(fontSize: 16)),
             ),
-            const SizedBox(height: 10),
-            TextButton(
-              onPressed: () async {
-                // 테스트용 더미 API 키 저장
-                await StorageService.saveApiKey('TEST_API_KEY');
-                if (!mounted) return;
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => PinSetupScreen(apiKey: 'TEST_API_KEY')),
-                );
-              },
-              child: const Text('테스트 모드로 시작 (API 키 없이)', style: TextStyle(color: Colors.grey)),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.blue.shade600, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        'API 키 발급 방법',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue.shade800,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '1. Google Cloud Console에 로그인\n'
+                    '2. 프로젝트 선택 또는 생성\n'
+                    '3. API 및 서비스 > YouTube Data API v3 활성화\n'
+                    '4. 사용자 인증 정보 > API 키 생성',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.blue.shade700,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),

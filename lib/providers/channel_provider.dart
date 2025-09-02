@@ -3,6 +3,7 @@ import '../core/base_provider.dart';
 import '../core/interfaces/i_youtube_service.dart';
 import '../core/interfaces/i_storage_service.dart';
 import '../core/cache_manager.dart';
+import '../core/debug_logger.dart';
 
 /// Channel provider with clean architecture and dependency injection
 /// Manages channel subscriptions and search functionality
@@ -34,6 +35,52 @@ class ChannelProvider extends CacheableProvider<List<Channel>> {
     await executeOperation<void>(
       () async {
         _subscribedChannels = await _storageService.loadChannels();
+        DebugLogger.logFlow('ChannelProvider.loadSubscribedChannels: channels loaded', data: {
+          'channelCount': _subscribedChannels.length,
+          'channelTitles': _subscribedChannels.map((c) => c.title).toList(),
+          'channelCategories': _subscribedChannels.map((c) => c.category).toList()
+        });
+        
+        // 임시 수정: title이 비어있는 채널들을 수정
+        bool needsUpdate = false;
+        List<Channel> updatedChannels = [];
+        
+        for (Channel channel in _subscribedChannels) {
+          if (channel.title.isEmpty) {
+            DebugLogger.logFlow('ChannelProvider: Found channel with empty title, attempting to refresh', data: {
+              'channelId': channel.id
+            });
+            needsUpdate = true;
+            // 채널 상세 정보를 다시 가져와서 업데이트
+            try {
+              final details = await _youtubeService.getChannelDetails([channel.id]);
+              if (details.isNotEmpty && details.first.title.isNotEmpty) {
+                updatedChannels.add(details.first);
+                DebugLogger.logFlow('ChannelProvider: Successfully updated channel title', data: {
+                  'channelId': channel.id,
+                  'newTitle': details.first.title
+                });
+              } else {
+                updatedChannels.add(channel);
+              }
+            } catch (e) {
+              DebugLogger.logError('ChannelProvider: Failed to refresh channel', e);
+              updatedChannels.add(channel);
+            }
+          } else {
+            updatedChannels.add(channel);
+          }
+        }
+        
+        if (needsUpdate) {
+          _subscribedChannels = updatedChannels;
+          await _storageService.storeChannels(_subscribedChannels);
+          DebugLogger.logFlow('ChannelProvider: Updated channels saved', data: {
+            'updatedCount': _subscribedChannels.length,
+            'channelTitles': _subscribedChannels.map((c) => c.title).toList()
+          });
+        }
+        
         updateCacheTimestamp();
       },
       errorPrefix: '구독 채널을 불러오는데 실패했습니다',

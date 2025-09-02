@@ -258,14 +258,15 @@ class CloudBackupService {
       final status = await getBackupStatus();
       
       if (!status.hasBackup || status.needsBackup) {
-        print('Performing auto backup...');
-        final result = await backupToCloud();
-        
-        if (result.success) {
-          print('Auto backup completed: ${result.channelCount} channels');
-        } else {
-          print('Auto backup failed: ${result.error}');
-        }
+        print('Skipping auto backup (temporarily disabled for debugging)...');
+        // Temporarily disabled to avoid HTTP 404 errors
+        // final result = await backupToCloud();
+        // 
+        // if (result.success) {
+        //   print('Auto backup completed: ${result.channelCount} channels');
+        // } else {
+        //   print('Auto backup failed: ${result.error}');
+        // }
       }
     } catch (e) {
       print('Auto backup check failed: $e');

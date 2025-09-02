@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/recommendation_provider.dart';
+import '../core/service_locator.dart';
+import '../core/interfaces/i_storage_service.dart';
+import '../core/debug_logger.dart';
 
 class RecommendationSettingsScreen extends StatefulWidget {
   const RecommendationSettingsScreen({Key? key}) : super(key: key);
@@ -10,27 +13,47 @@ class RecommendationSettingsScreen extends StatefulWidget {
 }
 
 class _RecommendationSettingsScreenState extends State<RecommendationSettingsScreen> {
+  late RecommendationProvider _recommendationProvider;
+  
   @override
   void initState() {
     super.initState();
+    // Create provider instance using service locator
+    _recommendationProvider = RecommendationProvider(
+      storageService: getService<IStorageService>(),
+    );
+    // Load weights after creation
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<RecommendationProvider>(context, listen: false).loadWeights();
+      _recommendationProvider.loadWeights();
     });
   }
+  
+  @override
+  void dispose() {
+    _recommendationProvider.dispose();
+    super.dispose();
+  }
 
-  void _saveWeights(RecommendationProvider provider) async {
-    await provider.saveWeights();
-    if (mounted && provider.error == null) {
+  void _saveWeights() async {
+    DebugLogger.logFlow('RecommendationSettingsScreen._saveWeights started', data: {
+      'totalWeight': _recommendationProvider.weights.total
+    });
+    
+    await _recommendationProvider.saveWeights();
+    
+    if (mounted && _recommendationProvider.error == null) {
+      DebugLogger.logFlow('RecommendationSettingsScreen._saveWeights: success');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('추천 설정이 저장되었습니다'),
           backgroundColor: Colors.green,
         ),
       );
-    } else if (provider.error != null) {
+    } else if (_recommendationProvider.error != null) {
+      DebugLogger.logError('RecommendationSettingsScreen._saveWeights failed', _recommendationProvider.error!);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(provider.error!),
+          content: Text(_recommendationProvider.error!),
           backgroundColor: Colors.red,
         ),
       );
@@ -170,52 +193,55 @@ class _RecommendationSettingsScreenState extends State<RecommendationSettingsScr
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<RecommendationProvider>(
-      builder: (context, provider, child) {
-        if (provider.isLoading) {
+    return ChangeNotifierProvider<RecommendationProvider>.value(
+      value: _recommendationProvider,
+      child: Consumer<RecommendationProvider>(
+        builder: (context, provider, child) {
+          if (provider.isLoading) {
+            return Scaffold(
+              appBar: AppBar(
+                title: const Text('추천 설정'),
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              body: const Center(child: CircularProgressIndicator()),
+            );
+          }
+
           return Scaffold(
             appBar: AppBar(
               title: const Text('추천 설정'),
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
-            ),
-            body: const Center(child: CircularProgressIndicator()),
-          );
-        }
-
-        return Scaffold(
-          appBar: AppBar(
-            title: const Text('추천 설정'),
-            backgroundColor: Colors.red,
-            foregroundColor: Colors.white,
-            actions: [
-              TextButton(
-                onPressed: provider.resetToDefaults,
-                child: const Text('초기화', style: TextStyle(color: Colors.white)),
-              ),
-              TextButton(
-                onPressed: () => _saveWeights(provider),
-                child: const Text('저장', style: TextStyle(color: Colors.white)),
-              ),
-            ],
-          ),
-          body: SingleChildScrollView(
-            child: Column(
-              children: [
-                _buildInfoCard(),
-                _buildTotalWeightCard(provider),
-                const SizedBox(height: 8),
-                ...['한글', '키즈', '만들기', '게임', '영어', '과학', '미술', '음악', '랜덤']
-                    .map((category) => _buildWeightSlider(category, provider))
-                    .toList(),
-                const SizedBox(height: 24),
-                _buildSaveButton(provider),
-                const SizedBox(height: 16),
+              actions: [
+                TextButton(
+                  onPressed: provider.resetToDefaults,
+                  child: const Text('초기화', style: TextStyle(color: Colors.white)),
+                ),
+                TextButton(
+                  onPressed: _saveWeights,
+                  child: const Text('저장', style: TextStyle(color: Colors.white)),
+                ),
               ],
             ),
-          ),
-        );
-      },
+            body: SingleChildScrollView(
+              child: Column(
+                children: [
+                  _buildInfoCard(),
+                  _buildTotalWeightCard(provider),
+                  const SizedBox(height: 8),
+                  ...['한글', '키즈', '만들기', '게임', '영어', '과학', '미술', '음악', '랜덤']
+                      .map((category) => _buildWeightSlider(category, provider))
+                      .toList(),
+                  const SizedBox(height: 24),
+                  _buildSaveButton(provider),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -302,7 +328,7 @@ class _RecommendationSettingsScreenState extends State<RecommendationSettingsScr
       width: double.infinity,
       margin: const EdgeInsets.all(16),
       child: ElevatedButton(
-        onPressed: () => _saveWeights(provider),
+        onPressed: _saveWeights,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.red,
           foregroundColor: Colors.white,

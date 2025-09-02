@@ -3,6 +3,7 @@ import '../core/base_provider.dart';
 import '../core/interfaces/i_youtube_service.dart';
 import '../core/interfaces/i_storage_service.dart';
 import '../core/cache_manager.dart';
+import '../core/debug_logger.dart';
 import 'channel_provider.dart';
 
 /// Video provider with clean architecture and dependency injection
@@ -36,28 +37,63 @@ class VideoProvider extends CacheableProvider<List<Video>> {
 
   /// Handle channel changes
   void _onChannelsChanged() {
+    DebugLogger.logFlow('VideoProvider._onChannelsChanged triggered', data: {
+      'hasChannels': _channelProvider?.subscribedChannels.isNotEmpty ?? false,
+      'channelCount': _channelProvider?.subscribedChannels.length ?? 0,
+      'isCacheExpired': isCacheExpired
+    });
+    
     if (_channelProvider?.subscribedChannels.isNotEmpty ?? false) {
       if (isCacheExpired) {
+        DebugLogger.logFlow('VideoProvider._onChannelsChanged: refreshing videos');
         refreshVideos();
+      } else {
+        DebugLogger.logFlow('VideoProvider._onChannelsChanged: cache still valid');
       }
     }
   }
 
   /// Load videos with proper state management
   Future<void> loadVideos() async {
-    if (_channelProvider == null || _channelProvider!.subscribedChannels.isEmpty) {
+    DebugLogger.logFlow('VideoProvider.loadVideos started');
+    
+    if (_channelProvider == null) {
+      DebugLogger.logFlow('VideoProvider.loadVideos: channelProvider is null');
+      _videos = [];
+      notifyListeners();
+      return;
+    }
+    
+    if (_channelProvider!.subscribedChannels.isEmpty) {
+      DebugLogger.logFlow('VideoProvider.loadVideos: no subscribed channels', data: {
+        'channelCount': _channelProvider!.subscribedChannels.length
+      });
       _videos = [];
       notifyListeners();
       return;
     }
 
+    DebugLogger.logFlow('VideoProvider.loadVideos: starting video fetch', data: {
+      'channelCount': _channelProvider!.subscribedChannels.length
+    });
+
     await executeOperation<void>(
       () async {
         final weights = await _storageService.getRecommendationWeights();
+        DebugLogger.logFlow('VideoProvider.loadVideos: got weights', data: {
+          'totalWeight': weights.total,
+          'korean': weights.korean,
+          'kids': weights.kids
+        });
+        
         final videos = await _youtubeService.getWeightedRecommendedVideos(
           _channelProvider!.subscribedChannels, 
           weights,
         );
+        
+        DebugLogger.logFlow('VideoProvider.loadVideos: got videos', data: {
+          'videoCount': videos.length
+        });
         
         _videos = videos;
         updateCacheTimestamp();

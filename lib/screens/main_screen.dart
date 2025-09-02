@@ -6,6 +6,8 @@ import '../providers/video_provider.dart';
 import '../providers/channel_provider.dart';
 import '../providers/recommendation_provider.dart';
 import '../core/service_locator.dart';
+import '../core/background_refresh_manager.dart';
+import '../core/cache_analytics.dart';
 import 'pin_verification_screen.dart';
 import 'channel_management_screen.dart';
 import 'video_player_screen.dart';
@@ -22,15 +24,30 @@ class MainScreen extends StatefulWidget {
   State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
+class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   late VideoProvider _videoProvider;
   late ChannelProvider _channelProvider;
   late RecommendationProvider _recommendationProvider;
+  late BackgroundRefreshManager _backgroundRefreshManager;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initializeProviders();
+  }
+  
+  
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      // 앱이 포그라운드에서 돌아오면 백그라운드 갱신 시작
+      _backgroundRefreshManager.startBackgroundRefresh();
+    } else if (state == AppLifecycleState.paused) {
+      // 앱이 백그라운드로 가면 백그라운드 갱신 중지
+      _backgroundRefreshManager.stopBackgroundRefresh();
+    }
   }
 
   void _initializeProviders() {
@@ -45,12 +62,21 @@ class _MainScreenState extends State<MainScreen> {
     // Set up provider relationships for reactive updates
     _videoProvider.setChannelProvider(_channelProvider);
     
+    // Get background refresh manager
+    _backgroundRefreshManager = getService<BackgroundRefreshManager>();
+    
     // Load initial data
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _channelProvider.loadSubscribedChannels().then((_) {
-        _videoProvider.loadVideos();
-      });
-      _recommendationProvider.loadWeights();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Load subscribed channels and videos
+      await _channelProvider.loadSubscribedChannels();
+      await _videoProvider.loadVideos();
+      await _recommendationProvider.loadWeights();
+      
+      // Start background refresh system
+      _backgroundRefreshManager.startBackgroundRefresh();
+      
+      // Clean old analytics data periodically
+      await CacheAnalytics.cleanOldAnalytics();
     });
   }
 
@@ -567,6 +593,8 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _backgroundRefreshManager.dispose();
     _videoProvider.dispose();
     _channelProvider.dispose();
     _recommendationProvider.dispose();
