@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:provider/provider.dart';
 import '../models/video.dart';
-import '../models/channel.dart';
-import '../models/recommendation_weights.dart';
-import '../services/youtube_service.dart';
-import '../services/storage_service.dart';
+import '../providers/video_provider.dart';
+import '../providers/channel_provider.dart';
 import 'pin_verification_screen.dart';
 import 'channel_management_screen.dart';
 import 'video_player_screen.dart';
@@ -23,49 +21,17 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  late YouTubeService _youtubeService;
-  List<Video> _videos = [];
-  List<Channel> _channels = [];
-  bool _isLoading = true;
-  bool _isRefreshing = false;
-
   @override
   void initState() {
     super.initState();
-    _youtubeService = YouTubeService(apiKey: widget.apiKey);
-    _loadVideos();
-  }
-
-  Future<void> _loadVideos() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    _channels = await StorageService.getChannels();
-    
-    if (_channels.isNotEmpty) {
-      // 추천 가중치를 가져와서 가중치 기반 추천 사용
-      final weights = await StorageService.getRecommendationWeights();
-      final videos = await _youtubeService.getWeightedRecommendedVideos(_channels, weights);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final videoProvider = Provider.of<VideoProvider>(context, listen: false);
+      final channelProvider = Provider.of<ChannelProvider>(context, listen: false);
       
-      setState(() {
-        _videos = videos;
-        _isLoading = false;
-        _isRefreshing = false;
-      });
-    } else {
-      setState(() {
-        _isLoading = false;
-        _isRefreshing = false;
-      });
-    }
-  }
-
-  Future<void> _refresh() async {
-    setState(() {
-      _isRefreshing = true;
+      videoProvider.setApiKey(widget.apiKey);
+      channelProvider.setApiKey(widget.apiKey);
+      videoProvider.loadVideos();
     });
-    await _loadVideos();
   }
 
   void _openVideo(Video video) {
@@ -137,140 +103,46 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ],
       ),
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            const DrawerHeader(
-              decoration: BoxDecoration(
-                color: Colors.red,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Icon(
-                    Icons.play_circle_filled,
-                    size: 60,
-                    color: Colors.white,
-                  ),
-                  SizedBox(height: 10),
-                  Text(
-                    'KidsTube',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.home),
-              title: const Text('홈'),
-              onTap: () {
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.search),
-              title: const Text('채널검색'),
-              onTap: () {
-                Navigator.pop(context);
-                _openParentSettings();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.list),
-              title: const Text('전체 채널'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => AllChannelsScreen(apiKey: widget.apiKey),
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.refresh),
-              title: const Text('새로고침'),
-              onTap: () {
-                Navigator.pop(context);
-                _refresh();
-              },
-            ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.tune),
-              title: const Text('추천 설정'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => PinVerificationScreen(
-                      onSuccess: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const RecommendationSettingsScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.vpn_key),
-              title: const Text('API 설정'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => PinVerificationScreen(
-                      onSuccess: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const ApiSettingsScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.settings),
-              title: const Text('부모 설정'),
-              onTap: () {
-                Navigator.pop(context);
-                _openParentSettings();
-              },
-            ),
-          ],
-        ),
-      ),
-      body: RefreshIndicator(
-        onRefresh: _refresh,
-        child: _buildBody(),
+      drawer: _buildDrawer(),
+      body: Consumer<VideoProvider>(
+        builder: (context, videoProvider, child) {
+          return RefreshIndicator(
+            onRefresh: () => videoProvider.refreshVideos(),
+            child: _buildBody(videoProvider),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildBody() {
-    if (_isLoading) {
+  Widget _buildBody(VideoProvider videoProvider) {
+    if (videoProvider.isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (_channels.isEmpty) {
+    if (videoProvider.error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 80, color: Colors.red),
+            const SizedBox(height: 16),
+            Text(
+              videoProvider.error!,
+              style: const TextStyle(fontSize: 16, color: Colors.red),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => videoProvider.loadVideos(),
+              child: const Text('다시 시도'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (!videoProvider.hasChannels) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -292,7 +164,7 @@ class _MainScreenState extends State<MainScreen> {
       );
     }
 
-    if (_videos.isEmpty) {
+    if (!videoProvider.hasVideos) {
       return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -316,102 +188,229 @@ class _MainScreenState extends State<MainScreen> {
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
       ),
-      itemCount: _videos.length,
+      itemCount: videoProvider.videos.length,
       itemBuilder: (context, index) {
-        final video = _videos[index];
-        
-        return Card(
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: InkWell(
-            onTap: () => _openVideo(video),
-            borderRadius: BorderRadius.circular(8),
+        final video = videoProvider.videos[index];
+        return _buildVideoCard(video);
+      },
+    );
+  }
+
+  Widget _buildVideoCard(Video video) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: InkWell(
+        onTap: () => _openVideo(video),
+        borderRadius: BorderRadius.circular(8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+                    child: CachedNetworkImage(
+                      imageUrl: video.thumbnail,
+                      fit: BoxFit.cover,
+                      memCacheWidth: 400,
+                      memCacheHeight: 300,
+                      placeholder: (context, url) => Container(
+                        color: Colors.grey.shade200,
+                        child: const Center(
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                      errorWidget: (context, url, error) => Container(
+                        color: Colors.grey.shade200,
+                        child: const Icon(Icons.error),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 4,
+                    right: 4,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.black87,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        _formatPublishedTime(video.publishedAt),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const Center(
+                    child: Icon(
+                      Icons.play_circle_filled,
+                      color: Colors.white70,
+                      size: 40,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    video.title,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    video.channelTitle,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDrawer() {
+    return Drawer(
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          const DrawerHeader(
+            decoration: BoxDecoration(
+              color: Colors.red,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Expanded(
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      ClipRRect(
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-                        child: CachedNetworkImage(
-                          imageUrl: video.thumbnail,
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) => Container(
-                            color: Colors.grey.shade200,
-                            child: const Center(
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          ),
-                          errorWidget: (context, url, error) => Container(
-                            color: Colors.grey.shade200,
-                            child: const Icon(Icons.error),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        bottom: 4,
-                        right: 4,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.black87,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            _formatPublishedTime(video.publishedAt),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const Center(
-                        child: Icon(
-                          Icons.play_circle_filled,
-                          color: Colors.white70,
-                          size: 40,
-                        ),
-                      ),
-                    ],
-                  ),
+                Icon(
+                  Icons.play_circle_filled,
+                  size: 60,
+                  color: Colors.white,
                 ),
-                Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        video.title,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        video.channelTitle,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+                SizedBox(height: 10),
+                Text(
+                  'KidsTube',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ],
             ),
           ),
-        );
-      },
+          ListTile(
+            leading: const Icon(Icons.home),
+            title: const Text('홈'),
+            onTap: () => Navigator.pop(context),
+          ),
+          ListTile(
+            leading: const Icon(Icons.search),
+            title: const Text('채널검색'),
+            onTap: () {
+              Navigator.pop(context);
+              _openParentSettings();
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.list),
+            title: const Text('전체 채널'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => AllChannelsScreen(apiKey: widget.apiKey),
+                ),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.refresh),
+            title: const Text('새로고침'),
+            onTap: () {
+              Navigator.pop(context);
+              Provider.of<VideoProvider>(context, listen: false).refreshVideos();
+            },
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.tune),
+            title: const Text('추천 설정'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => PinVerificationScreen(
+                    onSuccess: () {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const RecommendationSettingsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.vpn_key),
+            title: const Text('API 설정'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => PinVerificationScreen(
+                    onSuccess: () {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ApiSettingsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.settings),
+            title: const Text('부모 설정'),
+            onTap: () {
+              Navigator.pop(context);
+              _openParentSettings();
+            },
+          ),
+        ],
+      ),
     );
   }
 }
