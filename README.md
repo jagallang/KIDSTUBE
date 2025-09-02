@@ -5,7 +5,7 @@
 [![Flutter Version](https://img.shields.io/badge/Flutter-3.29.2-blue.svg)](https://flutter.dev)
 [![Dart Version](https://img.shields.io/badge/Dart-3.7.2-blue.svg)](https://dart.dev)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.1.07-orange.svg)](https://github.com/yourusername/kidstube/releases)
+[![Version](https://img.shields.io/badge/Version-1.2.1-orange.svg)](https://github.com/yourusername/kidstube/releases)
 
 ## 📱 소개
 
@@ -18,13 +18,14 @@ KidsTube는 부모가 안심하고 자녀에게 보여줄 수 있는 교육적�
 - 🎯 **맞춤형 추천**: 카테고리별 가중치 기반 영상 추천
 - 🎨 **어린이 친화적 UI**: 직관적이고 사용하기 쉬운 인터페이스
 - 📊 **카테고리 관리**: 한글, 영어, 과학, 미술 등 다양한 교육 카테고리
-- ⚡ **지능형 캐싱**: 85-90% API 호출 감소, 오프라인 브라우징 지원
-- 🔄 **백그라운드 갱신**: 사용 패턴 기반 자동 콘텐츠 업데이트
+- ⚡ **지능형 캐싱**: 90-95% API 호출 감소, 오프라인 브라우징 지원
+- 🔄 **백그라운드 갱신**: 선택적 자동 갱신으로 API 사용량 최적화
+- 📊 **API 사용량 추적**: 실시간 할당량 모니터링 및 제한
 - ☁️ **클라우드 백업**: 구독 채널 자동 백업 및 복원
 
 ## 🏗️ 아키텍처
 
-### Clean Architecture + Enhanced Weight System (v1.1.07)
+### Clean Architecture + API Optimization System (v1.2.0)
 
 ```
 lib/
@@ -35,6 +36,7 @@ lib/
 │   ├── cache_analytics.dart       # 캐시 사용 패턴 분석
 │   ├── cached_data.dart           # 타입 안전 캐시 래퍼
 │   ├── debug_logger.dart          # 통합 디버그 로깅 시스템
+│   ├── api_usage_tracker.dart     # API 사용량 추적 및 제한
 │   ├── background_refresh_manager.dart # 백그라운드 갱신 시스템
 │   └── interfaces/                # 서비스 인터페이스
 │       ├── i_youtube_service.dart
@@ -59,6 +61,8 @@ lib/
 │   ├── splash_screen.dart
 │   ├── main_screen.dart
 │   ├── video_player_screen.dart
+│   ├── api_settings_screen.dart
+│   ├── background_refresh_settings_screen.dart
 │   └── ...
 └── main.dart                      # 앱 진입점
 ```
@@ -68,9 +72,10 @@ lib/
 - **SOLID 원칙**: 단일 책임, 개방-폐쇄, 리스코프 치환, 인터페이스 분리, 의존성 역전
 - **의존성 주입**: GetIt을 사용한 서비스 로케이터 패턴
 - **상태 관리**: Provider 패턴과 Selector를 통한 최적화
-- **지능형 캐싱**: 데이터 타입별 차별화된 TTL (6시간-30일)
+- **지능형 캐싱**: 데이터 타입별 차별화된 TTL (1일-30일)
+- **API 최적화**: 사전 정의 채널 목록 및 할당량 추적
 - **Graceful Fallback**: 네트워크 실패 시 만료된 캐시 활용
-- **백그라운드 처리**: 우선순위 기반 자동 콘텐츠 갱신
+- **백그라운드 처리**: 선택적 자동 콘텐츠 갱신 (기본 비활성화)
 - **에러 처리**: 중앙화된 에러 처리 시스템
 
 ## 🚀 시작하기
@@ -152,6 +157,15 @@ dependencies:
 
 ## 🔄 버전 히스토리
 
+### v1.2.1 (2025-01-XX) 📚
+- **📖 개발 문서 강화**: 포괄적인 CLAUDE.md 가이드 추가
+- **🇰🇷 한글 번역**: 개발자 접근성 향상을 위한 완전한 한글 문서화
+- **🏗️ 아키텍처 가이드**: Clean Architecture + SOLID 원칙 상세 설명
+- **⚡ 개발 패턴 정리**: 의존성 주입, 캐싱 시스템, Provider 패턴 문서화
+- **🛠️ 개발 도구**: Flutter 명령어, 테스트 전략, 워크플로 가이드
+- **📋 구현 참고사항**: API 키 관리, 성능 최적화, 오류 처리 방법
+- **🎯 개발자 경험 향상**: Claude Code와의 협업을 위한 체계적 문서 제공
+
 ### v1.1.07 (2025-01-XX) 🎯
 - **🔧 가중치 시스템 완전 수정**: 부모 설정 가중치가 정확히 작동하도록 알고리즘 재설계
 - **🎲 영상 다양성 혁신**: 채널당 10개 비디오 수집으로 다양성 확보, 중복 영상 완전 제거
@@ -210,6 +224,17 @@ flutter format .
 ```
 
 ## 📝 개발 가이드
+
+### CLAUDE.md 활용
+프로젝트에는 Claude Code (claude.ai/code)와의 협업을 위한 포괄적인 개발 가이드가 포함되어 있습니다:
+
+- **한글 문서**: 모든 가이드가 한국어로 제공되어 개발자 접근성 향상
+- **아키텍처 개요**: Clean Architecture + SOLID 원칙 기반 설계 설명
+- **개발 명령어**: Flutter 빌드, 테스트, 분석 명령어 모음
+- **패턴 가이드**: 의존성 주입, Provider 패턴, 캐싱 전략 설명
+- **구현 참고사항**: API 키 관리, 성능 최적화, 오류 처리 방법
+
+자세한 내용은 [CLAUDE.md](CLAUDE.md) 파일을 참조하세요.
 
 ### 새로운 Provider 추가
 ```dart
