@@ -192,22 +192,40 @@ class YouTubeService implements IYouTubeService {
       return getCombinedVideos(channels);
     }
 
+    // 모든 채널에서 비디오를 미리 수집 (채널당 최대 10개)
+    Map<Channel, List<Video>> channelVideos = {};
+    for (Channel channel in channels) {
+      if (channel.uploadsPlaylistId.isNotEmpty) {
+        final videos = await getChannelVideos(channel.uploadsPlaylistId);
+        if (videos.isNotEmpty) {
+          // 채널별로 최신 10개의 비디오를 가져와서 다양성 확보
+          videos.sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
+          channelVideos[channel] = videos.take(10).toList();
+        }
+      }
+    }
+
+    DebugLogger.logFlow('YouTubeService.getWeightedRecommendedVideos: collected all videos', data: {
+      'channelsWithVideos': channelVideos.length,
+      'totalVideos': channelVideos.values.fold(0, (sum, videos) => sum + videos.length)
+    });
+
     // 카테고리별 채널 분류
     final Map<String, List<Channel>> categorizedChannels = _categorizeChannels(channels);
     DebugLogger.logFlow('YouTubeService.getWeightedRecommendedVideos: channels categorized', data: {
-      'categoryCounts': categorizedChannels.map((k, v) => MapEntry(k, v.length)),
-      'channelTitles': channels.map((c) => c.title).toList()
+      'categoryCounts': categorizedChannels.map((k, v) => MapEntry(k, v.length))
     });
     
-    // 카테고리별 영상 개수 계산
-    final videoCounts = weights.getVideoCountsForTotal(20);
-    DebugLogger.logFlow('YouTubeService.getWeightedRecommendedVideos: video counts calculated', data: {
+    // 카테고리별 영상 개수 계산 (간소화된 분배)
+    final videoCounts = _calculateSimplifiedVideoDistribution(categorizedChannels, weights);
+    DebugLogger.logFlow('YouTubeService.getWeightedRecommendedVideos: simplified video distribution', data: {
       'videoCounts': videoCounts
     });
     
-    List<Video> recommendedVideos = [];
+    List<Video> allSelectedVideos = [];
+    Set<String> usedVideoIds = {}; // 중복 방지
     
-    // 각 카테고리별로 영상 수집
+    // 각 카테고리별로 영상 선택 (중복 없음)
     for (final entry in videoCounts.entries) {
       final category = entry.key;
       final targetCount = entry.value;
@@ -215,51 +233,129 @@ class YouTubeService implements IYouTubeService {
       if (targetCount <= 0) continue;
       
       final categoryChannels = categorizedChannels[category] ?? [];
-      if (categoryChannels.isEmpty && category != '랜덤') continue;
-      
       List<Video> categoryVideos = [];
       
-      if (category == '랜덤') {
-        // 랜덤의 경우 모든 채널에서 무작위 선택
-        final allChannels = channels.toList()..shuffle();
-        for (Channel channel in allChannels) {
+      // 카테고리 채널들에서 영상 수집
+      for (Channel channel in categoryChannels..shuffle()) {
+        final videos = channelVideos[channel] ?? [];
+        for (Video video in videos..shuffle()) {
           if (categoryVideos.length >= targetCount) break;
-          if (channel.uploadsPlaylistId.isNotEmpty) {
-            final videos = await getChannelVideos(channel.uploadsPlaylistId);
-            if (videos.isNotEmpty) {
-              videos.shuffle();
-              categoryVideos.addAll(videos.take(min(2, targetCount - categoryVideos.length)));
-            }
+          if (!usedVideoIds.contains(video.id)) {
+            categoryVideos.add(video);
+            usedVideoIds.add(video.id);
           }
         }
-      } else {
-        // 특정 카테고리 채널에서 영상 수집
-        for (Channel channel in categoryChannels) {
-          if (categoryVideos.length >= targetCount) break;
-          if (channel.uploadsPlaylistId.isNotEmpty) {
-            final videos = await getChannelVideos(channel.uploadsPlaylistId);
-            DebugLogger.logFlow('YouTubeService.getWeightedRecommendedVideos: got channel videos', data: {
-              'category': category,
-              'channelTitle': channel.title,
-              'videoCount': videos.length,
-              'uploadsPlaylistId': channel.uploadsPlaylistId
-            });
-            categoryVideos.addAll(videos);
-          }
-        }
-        
-        // 최신순 정렬 후 목표 개수만큼 선택
-        categoryVideos.sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
-        categoryVideos = categoryVideos.take(targetCount).toList();
+        if (categoryVideos.length >= targetCount) break;
       }
       
-      recommendedVideos.addAll(categoryVideos);
+      DebugLogger.logFlow('YouTubeService.getWeightedRecommendedVideos: selected videos for category', data: {
+        'category': category,
+        'targetCount': targetCount,
+        'actualCount': categoryVideos.length
+      });
+      
+      allSelectedVideos.addAll(categoryVideos);
     }
     
-    // 전체 결과를 섞어서 카테고리별로 분산되도록 함
-    recommendedVideos.shuffle();
+    // 목표 개수 미달 시 남은 비디오로 채우기
+    if (allSelectedVideos.length < 20) {
+      final remainingCount = 20 - allSelectedVideos.length;
+      List<Video> remainingVideos = [];
+      
+      for (final videos in channelVideos.values) {
+        for (Video video in videos) {
+          if (!usedVideoIds.contains(video.id)) {
+            remainingVideos.add(video);
+            usedVideoIds.add(video.id);
+          }
+        }
+      }
+      
+      remainingVideos.shuffle();
+      allSelectedVideos.addAll(remainingVideos.take(remainingCount));
+    }
     
-    return recommendedVideos.take(20).toList();
+    // 최종 결과 섞기 (카테고리 간 균등 분산)
+    allSelectedVideos.shuffle();
+    
+    DebugLogger.logFlow('YouTubeService.getWeightedRecommendedVideos completed', data: {
+      'finalVideoCount': allSelectedVideos.length,
+      'uniqueVideos': usedVideoIds.length
+    });
+    
+    return allSelectedVideos.take(20).toList();
+  }
+
+  /// 간소화된 영상 분배 계산 (가중치 기반)
+  Map<String, int> _calculateSimplifiedVideoDistribution(
+    Map<String, List<Channel>> categorizedChannels, 
+    RecommendationWeights weights
+  ) {
+    // 실제로 채널이 있는 카테고리만 고려
+    final activeCategories = <String, int>{};
+    final categoryWeights = {
+      '한글': weights.korean,
+      '키즈': weights.kids,
+      '만들기': weights.making,
+      '게임': weights.games,
+      '영어': weights.english,
+      '과학': weights.science,
+      '미술': weights.art,
+      '음악': weights.music,
+      '랜덤': weights.random,
+    };
+    
+    // 채널이 있는 카테고리의 가중치만 수집
+    int totalActiveWeight = 0;
+    for (final entry in categorizedChannels.entries) {
+      if (entry.value.isNotEmpty) {
+        final weight = categoryWeights[entry.key] ?? 0;
+        if (weight > 0) {
+          activeCategories[entry.key] = weight;
+          totalActiveWeight += weight;
+        }
+      }
+    }
+    
+    // 가중치 기반으로 20개 영상 분배
+    Map<String, int> distribution = {};
+    int distributedCount = 0;
+    
+    for (final entry in activeCategories.entries) {
+      final category = entry.key;
+      final weight = entry.value;
+      
+      // 가중치 비율로 영상 개수 계산 (최소 1개 보장)
+      int videoCount = ((20 * weight / totalActiveWeight).round()).clamp(1, 20);
+      
+      // 채널 수보다 많은 영상을 요청하지 않도록 제한
+      final channelCount = categorizedChannels[category]?.length ?? 0;
+      videoCount = min(videoCount, channelCount * 3); // 채널당 최대 3개
+      
+      distribution[category] = videoCount;
+      distributedCount += videoCount;
+    }
+    
+    // 20개 초과 시 비례적으로 줄이기
+    if (distributedCount > 20) {
+      final scale = 20.0 / distributedCount;
+      int adjustedTotal = 0;
+      for (final key in distribution.keys.toList()) {
+        final adjusted = (distribution[key]! * scale).round().clamp(1, 20);
+        distribution[key] = adjusted;
+        adjustedTotal += adjusted;
+      }
+      
+      // 정확히 20개가 되도록 미세 조정
+      while (adjustedTotal > 20) {
+        final maxKey = distribution.entries.where((e) => e.value > 1)
+            .reduce((a, b) => a.value > b.value ? a : b).key;
+        distribution[maxKey] = distribution[maxKey]! - 1;
+        adjustedTotal--;
+      }
+    }
+    
+    return distribution;
   }
 
   // 채널을 카테고리별로 분류
