@@ -2,6 +2,7 @@ import '../models/channel.dart';
 import '../core/base_provider.dart';
 import '../core/interfaces/i_youtube_service.dart';
 import '../core/interfaces/i_storage_service.dart';
+import '../core/cache_manager.dart';
 
 /// Channel provider with clean architecture and dependency injection
 /// Manages channel subscriptions and search functionality
@@ -23,7 +24,9 @@ class ChannelProvider extends CacheableProvider<List<Channel>> {
     required IStorageService storageService,
   }) : _youtubeService = youtubeService,
        _storageService = storageService {
-    setCacheTimeout(const Duration(hours: 1));
+    // Use smart cache duration for user subscriptions
+    final cacheDuration = SmartCacheManager.getCacheDuration(CacheType.userSubscriptions);
+    setCacheTimeout(cacheDuration);
   }
 
   /// Load subscribed channels
@@ -159,6 +162,9 @@ class ChannelProvider extends CacheableProvider<List<Channel>> {
   Future<void> refreshSubscribedChannels() async {
     setCacheTimeout(Duration.zero); // Force expiry
     await loadSubscribedChannels();
-    setCacheTimeout(const Duration(hours: 1)); // Reset timeout
+    
+    // Reset to smart cache duration
+    final cacheDuration = SmartCacheManager.getCacheDuration(CacheType.userSubscriptions);
+    setCacheTimeout(cacheDuration);
   }
 }

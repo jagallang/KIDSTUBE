@@ -1,6 +1,7 @@
 import '../models/recommendation_weights.dart';
 import '../core/base_provider.dart';
 import '../core/interfaces/i_storage_service.dart';
+import '../core/cache_manager.dart';
 
 /// Recommendation provider with clean architecture and dependency injection
 /// Manages recommendation weights configuration
@@ -14,7 +15,9 @@ class RecommendationProvider extends CacheableProvider<RecommendationWeights> {
   RecommendationProvider({
     required IStorageService storageService,
   }) : _storageService = storageService {
-    setCacheTimeout(const Duration(hours: 24));
+    // Use smart cache duration for recommendation weights
+    final cacheDuration = SmartCacheManager.getCacheDuration(CacheType.recommendationWeights);
+    setCacheTimeout(cacheDuration);
   }
 
   /// Load recommendation weights

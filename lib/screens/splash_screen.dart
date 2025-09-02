@@ -104,7 +104,7 @@ class _SplashScreenState extends State<SplashScreen> {
       ),
     ];
     
-    await StorageService.saveChannels(dummyChannels);
+    await StorageService.saveChannelsStatic(dummyChannels);
     await StorageService.setSetupComplete(true);
   }
 

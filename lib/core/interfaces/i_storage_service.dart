@@ -6,6 +6,7 @@ abstract class IStorageService {
   // Channel management
   Future<List<Channel>> loadChannels();
   Future<void> storeChannels(List<Channel> channels);
+  Future<void> saveChannels(List<Channel> channels); // Alias for compatibility
   
   // API key management
   Future<String?> loadApiKey();

@@ -54,4 +54,40 @@ class Video {
       publishedAt: snippet['publishedAt'] ?? '',
     );
   }
+
+  /// Convert Video to JSON for caching
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'thumbnail': thumbnail,
+      'channelTitle': channelTitle,
+      'publishedAt': publishedAt,
+    };
+  }
+
+  /// Create Video from simple JSON (for cache deserialization)
+  factory Video.fromCacheJson(Map<String, dynamic> json) {
+    return Video(
+      id: json['id'] ?? '',
+      title: json['title'] ?? '',
+      thumbnail: json['thumbnail'] ?? '',
+      channelTitle: json['channelTitle'] ?? '',
+      publishedAt: json['publishedAt'] ?? '',
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is Video && other.id == id;
+  }
+
+  @override
+  int get hashCode => id.hashCode;
+
+  @override
+  String toString() {
+    return 'Video(id: $id, title: $title, channelTitle: $channelTitle)';
+  }
 }

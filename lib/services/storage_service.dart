@@ -43,7 +43,7 @@ class StorageService implements IStorageService {
     return prefs.containsKey(_pinKey);
   }
 
-  static Future<void> saveChannels(List<Channel> channels) async {
+  static Future<void> saveChannelsStatic(List<Channel> channels) async {
     final prefs = await SharedPreferences.getInstance();
     final channelsJson = channels.map((c) => c.toJson()).toList();
     await prefs.setString(_channelsKey, json.encode(channelsJson));
@@ -76,14 +76,14 @@ class StorageService implements IStorageService {
     final channels = await getChannels();
     if (!channels.any((c) => c.id == channel.id)) {
       channels.add(channel);
-      await saveChannels(channels);
+      await saveChannelsStatic(channels);
     }
   }
 
   static Future<void> removeChannel(String channelId) async {
     final channels = await getChannels();
     channels.removeWhere((c) => c.id == channelId);
-    await saveChannels(channels);
+    await saveChannelsStatic(channels);
   }
 
   static Future<void> setSetupComplete(bool complete) async {
@@ -157,6 +157,11 @@ class StorageService implements IStorageService {
     final prefs = await SharedPreferences.getInstance();
     final channelsJson = channels.map((c) => c.toJson()).toList();
     await prefs.setString(_channelsKey, json.encode(channelsJson));
+  }
+  
+  @override
+  Future<void> saveChannels(List<Channel> channels) async {
+    await storeChannels(channels);
   }
 
   @override

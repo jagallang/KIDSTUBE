@@ -2,6 +2,7 @@ import '../models/video.dart';
 import '../core/base_provider.dart';
 import '../core/interfaces/i_youtube_service.dart';
 import '../core/interfaces/i_storage_service.dart';
+import '../core/cache_manager.dart';
 import 'channel_provider.dart';
 
 /// Video provider with clean architecture and dependency injection
@@ -21,7 +22,9 @@ class VideoProvider extends CacheableProvider<List<Video>> {
     required IStorageService storageService,
   }) : _youtubeService = youtubeService,
        _storageService = storageService {
-    setCacheTimeout(const Duration(minutes: 10));
+    // Use smart cache duration for video lists
+    final cacheDuration = SmartCacheManager.getCacheDuration(CacheType.videoList);
+    setCacheTimeout(cacheDuration);
   }
 
   /// Set channel provider for reactive updates
@@ -98,7 +101,10 @@ class VideoProvider extends CacheableProvider<List<Video>> {
   Future<void> forceRefresh() async {
     setCacheTimeout(Duration.zero); // Force expiry
     await loadVideos();
-    setCacheTimeout(const Duration(minutes: 10)); // Reset timeout
+    
+    // Reset to smart cache duration
+    final cacheDuration = SmartCacheManager.getCacheDuration(CacheType.videoList);
+    setCacheTimeout(cacheDuration);
   }
 
   /// Check if has channels (used by UI)
