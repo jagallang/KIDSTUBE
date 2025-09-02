@@ -5,7 +5,7 @@
 [![Flutter Version](https://img.shields.io/badge/Flutter-3.29.2-blue.svg)](https://flutter.dev)
 [![Dart Version](https://img.shields.io/badge/Dart-3.7.2-blue.svg)](https://dart.dev)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.1.06-orange.svg)](https://github.com/yourusername/kidstube/releases)
+[![Version](https://img.shields.io/badge/Version-1.1.07-orange.svg)](https://github.com/yourusername/kidstube/releases)
 
 ## 📱 소개
 
@@ -24,7 +24,7 @@ KidsTube는 부모가 안심하고 자녀에게 보여줄 수 있는 교육적�
 
 ## 🏗️ 아키텍처
 
-### Clean Architecture + Intelligent Caching (v1.1.06)
+### Clean Architecture + Enhanced Weight System (v1.1.07)
 
 ```
 lib/
@@ -48,10 +48,13 @@ lib/
 │   ├── video_provider.dart
 │   └── recommendation_provider.dart
 ├── services/                      # 외부 서비스
-│   ├── youtube_service.dart       # YouTube API
+│   ├── youtube_service.dart       # YouTube API (가중치 시스템 포함)
 │   ├── enhanced_youtube_service.dart # 캐시 강화 YouTube 서비스
 │   ├── cloud_backup_service.dart  # 클라우드 백업 서비스
 │   └── storage_service.dart       # 로컬 저장소
+├── utils/                         # 유틸리티
+│   ├── app_reset_util.dart        # 앱 데이터 관리
+│   └── weight_test_util.dart      # 가중치 테스트 도구
 ├── screens/                       # UI 화면
 │   ├── splash_screen.dart
 │   ├── main_screen.dart
@@ -148,6 +151,15 @@ dependencies:
 - **데이터 검증**: 백업 무결성 체크 및 오류 복구
 
 ## 🔄 버전 히스토리
+
+### v1.1.07 (2025-01-XX) 🎯
+- **🔧 가중치 시스템 완전 수정**: 부모 설정 가중치가 정확히 작동하도록 알고리즘 재설계
+- **🎲 영상 다양성 혁신**: 채널당 10개 비디오 수집으로 다양성 확보, 중복 영상 완전 제거
+- **🔄 새로고침 문제 해결**: 메인 화면에서 동일 영상 반복 표시 문제 근본적 해결
+- **⚡ 간소화된 분배 로직**: 실제 채널이 있는 카테고리만 고려한 효율적 분배 시스템
+- **🧪 테스트 유틸리티 추가**: WeightTestUtil로 가중치 계산 검증 및 디버깅 지원
+- **📊 다단계 셔플링**: 채널, 영상, 최종 결과 모든 단계에서 무작위화 적용
+- **🎬 사용자 경험 향상**: 새로고침할 때마다 다양하고 가중치에 맞는 영상 제공
 
 ### v1.1.06 (2025-01-XX) 🐛
 - **🔧 중요한 버그 수정**: 추천 영상이 1개만 표시되던 문제 해결 (8+ 영상으로 확대)
