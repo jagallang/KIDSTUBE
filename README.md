@@ -5,7 +5,7 @@
 [![Flutter Version](https://img.shields.io/badge/Flutter-3.29.2-blue.svg)](https://flutter.dev)
 [![Dart Version](https://img.shields.io/badge/Dart-3.7.2-blue.svg)](https://dart.dev)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.1.05-orange.svg)](https://github.com/yourusername/kidstube/releases)
+[![Version](https://img.shields.io/badge/Version-1.1.06-orange.svg)](https://github.com/yourusername/kidstube/releases)
 
 ## 📱 소개
 
@@ -24,7 +24,7 @@ KidsTube는 부모가 안심하고 자녀에게 보여줄 수 있는 교육적�
 
 ## 🏗️ 아키텍처
 
-### Clean Architecture + Intelligent Caching (v1.1.05)
+### Clean Architecture + Intelligent Caching (v1.1.06)
 
 ```
 lib/
@@ -34,6 +34,7 @@ lib/
 │   ├── cache_manager.dart         # 스마트 캐시 관리 시스템
 │   ├── cache_analytics.dart       # 캐시 사용 패턴 분석
 │   ├── cached_data.dart           # 타입 안전 캐시 래퍼
+│   ├── debug_logger.dart          # 통합 디버그 로깅 시스템
 │   ├── background_refresh_manager.dart # 백그라운드 갱신 시스템
 │   └── interfaces/                # 서비스 인터페이스
 │       ├── i_youtube_service.dart
@@ -147,6 +148,15 @@ dependencies:
 - **데이터 검증**: 백업 무결성 체크 및 오류 복구
 
 ## 🔄 버전 히스토리
+
+### v1.1.06 (2025-01-XX) 🐛
+- **🔧 중요한 버그 수정**: 추천 영상이 1개만 표시되던 문제 해결 (8+ 영상으로 확대)
+- **🏷️ 채널 제목 자동 복구**: 빈 채널 제목 자동 감지 및 복구 시스템
+- **📊 디버그 로깅 강화**: 통합 디버깅 시스템으로 문제 추적 향상
+- **🎯 카테고리 분류 개선**: 키즈, 만들기, 랜덤 등 정확한 카테고리 분류
+- **⚙️ Provider 컨텍스트 수정**: RecommendationSettingsScreen 안정성 향상
+- **🧪 실제 API 테스트**: 더미 데이터 의존성 제거, 실제 환경 테스트 강화
+- **✅ API 키 검증 개선**: AIza 형식 체크 및 상세 에러 메시지
 
 ### v1.1.05 (2025-01-XX) 🚀
 - ⚡ **지능형 캐싱 시스템**: 85-90% API 호출 감소
