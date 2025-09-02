@@ -5,7 +5,7 @@
 [![Flutter Version](https://img.shields.io/badge/Flutter-3.29.2-blue.svg)](https://flutter.dev)
 [![Dart Version](https://img.shields.io/badge/Dart-3.7.2-blue.svg)](https://dart.dev)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.2.1-orange.svg)](https://github.com/yourusername/kidstube/releases)
+[![Version](https://img.shields.io/badge/Version-2.0.01-orange.svg)](https://github.com/yourusername/kidstube/releases)
 
 ## 📱 소개
 
@@ -13,6 +13,15 @@ KidsTube는 부모가 안심하고 자녀에게 보여줄 수 있는 교육적�
 
 ### ✨ 주요 기능
 
+#### 🔐 백엔드 통합 및 사용자 관리 (v2.0.01 신규)
+- 🏠 **가족 계정 시스템**: 부모/자녀 역할 기반 다중 사용자 지원
+- 🔑 **JWT 인증**: 안전한 토큰 기반 로그인/회원가입 시스템
+- 👨‍👩‍👧‍👦 **가족 관리**: 가족 구성원 추가/삭제, 설정 공유
+- 🛡️ **고급 부모 통제**: 서버 기반 콘텐츠 필터링 및 시청 시간 제한
+- 📊 **통계 및 분석**: 개인별/가족별 시청 패턴 분석
+- 🔒 **보안 강화**: Flutter Secure Storage를 통한 토큰 보안 관리
+
+#### 📱 핵심 기능
 - 🔒 **부모 통제 기능**: PIN 기반 부모 설정 보호
 - 📺 **안전한 콘텐츠**: 검증된 어린이 채널만 구독 가능
 - 🎯 **맞춤형 추천**: 카테고리별 가중치 기반 영상 추천
@@ -25,7 +34,7 @@ KidsTube는 부모가 안심하고 자녀에게 보여줄 수 있는 교육적�
 
 ## 🏗️ 아키텍처
 
-### Clean Architecture + API Optimization System (v1.2.0)
+### Clean Architecture + Backend Integration System (v2.0.01)
 
 ```
 lib/
@@ -40,20 +49,26 @@ lib/
 │   ├── background_refresh_manager.dart # 백그라운드 갱신 시스템
 │   └── interfaces/                # 서비스 인터페이스
 │       ├── i_youtube_service.dart
-│       └── i_storage_service.dart
+│       ├── i_storage_service.dart
+│       └── i_backend_service.dart  # 백엔드 API 인터페이스
 ├── models/                        # 데이터 모델
 │   ├── channel.dart
 │   ├── video.dart
-│   └── recommendation_weights.dart
+│   ├── recommendation_weights.dart
+│   ├── user.dart                   # 사용자 모델 (부모/자녀 역할)
+│   ├── family.dart                 # 가족 계정 모델
+│   └── auth_response.dart          # 인증 응답 모델
 ├── providers/                     # 상태 관리 (Provider)
 │   ├── channel_provider.dart
 │   ├── video_provider.dart
-│   └── recommendation_provider.dart
+│   ├── recommendation_provider.dart
+│   └── auth_provider.dart          # 인증 및 사용자 관리
 ├── services/                      # 외부 서비스
 │   ├── youtube_service.dart       # YouTube API (가중치 시스템 포함)
 │   ├── enhanced_youtube_service.dart # 캐시 강화 YouTube 서비스
 │   ├── cloud_backup_service.dart  # 클라우드 백업 서비스
-│   └── storage_service.dart       # 로컬 저장소
+│   ├── storage_service.dart       # 로컬 저장소
+│   └── backend_service.dart       # Rails 백엔드 API 클라이언트
 ├── utils/                         # 유틸리티
 │   ├── app_reset_util.dart        # 앱 데이터 관리
 │   └── weight_test_util.dart      # 가중치 테스트 도구
@@ -77,14 +92,23 @@ lib/
 - **Graceful Fallback**: 네트워크 실패 시 만료된 캐시 활용
 - **백그라운드 처리**: 선택적 자동 콘텐츠 갱신 (기본 비활성화)
 - **에러 처리**: 중앙화된 에러 처리 시스템
+- **보안 중심**: JWT 토큰 관리, 자동 갱신, 안전한 저장소
+- **다중 사용자**: 가족 단위 계정 관리 및 역할 기반 접근 제어
 
 ## 🚀 시작하기
 
 ### 요구사항
 
+#### 클라이언트 (Flutter 앱)
 - Flutter SDK: 3.29.2 이상
 - Dart SDK: 3.7.2 이상
 - Android Studio / VS Code
+- YouTube Data API v3 키
+
+#### 백엔드 서버 (선택사항)
+- Ruby 3.2.0+ with Rails 7.0+
+- PostgreSQL 14+
+- Redis (캐싱 및 백그라운드 작업용)
 - YouTube Data API v3 키
 
 ### 설치
@@ -100,12 +124,23 @@ cd kidstube
 flutter pub get
 ```
 
-3. YouTube API 키 설정
+3. 백엔드 서버 설정 (선택사항)
+```bash
+# Rails 서버 실행 (별도 저장소)
+git clone [rails-backend-repo-url]
+cd kidstube-backend
+bundle install
+rails db:setup
+rails server
+```
+
+4. API 키 및 서버 설정
    - [Google Cloud Console](https://console.cloud.google.com)에서 YouTube Data API v3 활성화
    - API 키 생성 및 복사
    - 앱 실행 후 설정에서 API 키 입력
+   - 백엔드 서버 사용 시 서버 URL 설정
 
-4. 앱 실행
+5. 앱 실행
 ```bash
 flutter run
 ```
@@ -123,6 +158,11 @@ dependencies:
   youtube_player_flutter: ^9.0.0  # 비디오 재생
   connectivity_plus: ^6.0.5  # 네트워크 상태 감지
   crypto: ^3.0.3             # PIN 암호화
+  # Backend integration dependencies (v2.0.01)
+  dio: ^5.4.0                # 고급 HTTP 클라이언트
+  json_annotation: ^4.8.1    # JSON 직렬화
+  flutter_secure_storage: ^9.0.0  # 보안 토큰 저장소
+  jwt_decode: ^0.3.1         # JWT 토큰 유틸리티
 ```
 
 ## 🎯 주요 기능 상세
@@ -155,7 +195,31 @@ dependencies:
 - **복원 기능**: 디바이스 변경 시 원클릭 복원
 - **데이터 검증**: 백업 무결성 체크 및 오류 복구
 
+### 6. 백엔드 통합 시스템 (v2.0.01 신규)
+- **가족 계정 관리**: 부모/자녀 역할 기반 다중 사용자 시스템
+- **JWT 인증**: 안전한 토큰 기반 로그인 및 자동 갱신
+- **서버 기반 캐싱**: Rails 백엔드의 PostgreSQL + Redis 캐싱
+- **고급 부모 통제**: 키워드, 채널, 영상 단위 서버 기반 차단
+- **시청 기록 추적**: 개인별 시청 패턴 및 통계 분석
+- **실시간 동기화**: 가족 구성원 간 설정 및 콘텐츠 동기화
+- **백그라운드 작업**: 서버 측 비디오 캐싱 및 콘텐츠 업데이트
+- **확장 가능한 아키텍처**: 마이크로서비스 패턴으로 확장 준비
+
 ## 🔄 버전 히스토리
+
+### v2.0.01 (2025-01-XX) 🚀
+- **🔗 백엔드 통합**: Rails API 서버와 완전한 통합
+- **🔐 JWT 인증**: 자동 토큰 갱신 및 보안 저장소 구현
+- **👨‍👩‍👧‍👦 가족 계정**: 부모/자녀 역할 기반 다중 사용자 지원
+- **📱 보안 강화**: Flutter Secure Storage로 토큰 안전 관리
+- **🎯 사용자 관리**: 회원가입, 로그인, 로그아웃 완전 구현
+- **🛡️ 고급 부모 통제**: 서버 기반 콘텐츠 필터링 및 차단
+- **📊 통계 시스템**: 개인별/가족별 시청 기록 및 패턴 분석
+- **🎮 백엔드 피드**: 서버 캐싱을 통한 최적화된 비디오 피드
+- **🏗️ 아키텍처 개선**: Clean Architecture 원칙 유지하며 백엔드 통합
+- **⚡ HTTP 클라이언트**: Dio 기반 인터셉터, 재시도, 오류 처리
+- **📋 JSON 직렬화**: 코드 생성을 통한 타입 안전 데이터 처리
+- **🔄 상태 관리**: 인증 상태 및 가족 관리 Provider 추가
 
 ### v1.2.1 (2025-01-XX) 📚
 - **📖 개발 문서 강화**: 포괄적인 CLAUDE.md 가이드 추가
@@ -262,6 +326,37 @@ print('Hit Rate: ${stats['averageHitRate']}%');
 final topKeys = await CacheAnalytics.getTopPriorityCacheKeys(10);
 ```
 
+### 백엔드 서비스 사용 (v2.0.01)
+```dart
+// 사용자 인증
+final authProvider = context.read<AuthProvider>();
+final success = await authProvider.signIn(
+  email: 'user@example.com',
+  password: 'password',
+);
+
+// 가족 구성원 추가
+if (authProvider.currentUser?.role == UserRole.parent) {
+  await authProvider.addFamilyMember(
+    email: 'child@example.com',
+    name: '아이 이름',
+    password: 'childpassword',
+    pin: '1234',
+  );
+}
+
+// 백엔드에서 비디오 피드 가져오기
+final backendService = serviceLocator<IBackendService>();
+final videos = await backendService.getFeed(page: 1, perPage: 20);
+
+// 시청 기록 저장
+await backendService.recordWatchHistory(
+  videoId: 'video_id',
+  durationSeconds: 180,
+  watchedAt: DateTime.now(),
+);
+```
+
 ### 클라우드 백업 사용
 ```dart
 // 백업 생성
@@ -283,6 +378,19 @@ abstract class INewService {
   Future<DataType> fetchData();
   Future<void> saveData(DataType data);
 }
+```
+
+### 백엔드 서비스 등록 (v2.0.01)
+```dart
+// 백엔드 서비스 초기화
+initializeBackendServices(baseUrl: 'https://your-backend-url.com');
+
+// 인증 Provider 등록
+serviceLocator.registerFactory<AuthProvider>(
+  () => AuthProvider(
+    backendService: serviceLocator<IBackendService>(),
+  ),
+);
 ```
 
 ### 의존성 등록
