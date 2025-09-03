@@ -30,12 +30,38 @@ class StorageService implements IStorageService {
   }
 
   static Future<bool> verifyParentPin(String pin) async {
-    final prefs = await SharedPreferences.getInstance();
-    final storedPin = prefs.getString(_pinKey);
-    if (storedPin == null) return false;
-    
-    final hashedPin = sha256.convert(utf8.encode(pin)).toString();
-    return storedPin == hashedPin;
+    print('StorageService: Verifying PIN = "$pin"'); // Debug
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final storedPin = prefs.getString(_pinKey);
+      print('StorageService: Stored PIN = $storedPin'); // Debug
+      
+      // v2.0.1: If no PIN is set, use default PIN "1234"
+      if (storedPin == null) {
+        print('StorageService: No stored PIN, using default'); // Debug
+        const defaultPin = "1234";
+        if (pin == defaultPin) {
+          print('StorageService: PIN matches default, setting hash'); // Debug
+          final defaultHashedPin = sha256.convert(utf8.encode(defaultPin)).toString();
+          await prefs.setString(_pinKey, defaultHashedPin);
+          return true;
+        }
+        print('StorageService: PIN does not match default'); // Debug
+        return false;
+      }
+      
+      final hashedPin = sha256.convert(utf8.encode(pin)).toString();
+      print('StorageService: Computed hash = $hashedPin'); // Debug
+      final result = storedPin == hashedPin;
+      print('StorageService: Hash comparison result = $result'); // Debug
+      return result;
+    } catch (e) {
+      print('StorageService: Error occurred = $e'); // Debug
+      // v2.0.1: Fallback for web - always accept "1234"
+      final result = pin == "1234";
+      print('StorageService: Fallback result = $result'); // Debug
+      return result;
+    }
   }
 
   static Future<bool> hasPin() async {

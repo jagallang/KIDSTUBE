@@ -8,6 +8,9 @@ void main() async {
   // Initialize dependency injection
   await initializeServices();
   
+  // Initialize backend services with localhost URL
+  initializeBackendServices(baseUrl: 'http://localhost:3000');
+  
   runApp(const KidsTubeApp());
 }
 

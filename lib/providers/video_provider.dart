@@ -1,4 +1,6 @@
 import '../models/video.dart';
+import '../models/channel.dart';
+import '../models/recommendation_weights.dart';
 import '../core/base_provider.dart';
 import '../core/interfaces/i_youtube_service.dart';
 import '../core/interfaces/i_storage_service.dart';
@@ -19,13 +21,19 @@ class VideoProvider extends CacheableProvider<List<Video>> {
   bool get hasVideos => _videos.isNotEmpty;
 
   VideoProvider({
-    required IYouTubeService youtubeService,
+    required IYouTubeService? youtubeService,
     required IStorageService storageService,
-  }) : _youtubeService = youtubeService,
+  }) : _youtubeService = youtubeService ?? _createDummyYouTubeService(),
        _storageService = storageService {
     // Use smart cache duration for video lists
     final cacheDuration = SmartCacheManager.getCacheDuration(CacheType.videoList);
     setCacheTimeout(cacheDuration);
+  }
+
+  // v2.0.1: Create dummy YouTube service for null safety
+  static IYouTubeService _createDummyYouTubeService() {
+    // Return a dummy implementation that doesn't perform any operations
+    return _DummyYouTubeService();
   }
 
   /// Set channel provider for reactive updates
@@ -150,5 +158,36 @@ class VideoProvider extends CacheableProvider<List<Video>> {
   void dispose() {
     _channelProvider?.removeListener(_onChannelsChanged);
     super.dispose();
+  }
+}
+
+/// Dummy YouTube service for v2.0.1 backend-only architecture
+class _DummyYouTubeService implements IYouTubeService {
+  @override
+  Future<bool> validateApiKey() async {
+    return false; // Always return false since no API key
+  }
+
+  @override
+  Future<List<Channel>> searchChannels(String query) async {
+    return []; // Return empty list
+  }
+
+  @override
+  Future<List<Video>> getChannelVideos(String uploadsPlaylistId, {String? pageToken}) async {
+    return []; // Return empty list
+  }
+
+  @override
+  Future<List<Video>> getWeightedRecommendedVideos(
+    List<Channel> channels, 
+    RecommendationWeights weights,
+  ) async {
+    return []; // Return empty list - videos will come from backend API
+  }
+
+  @override
+  Future<List<Channel>> getChannelDetails(List<String> channelIds) async {
+    return []; // Return empty list
   }
 }

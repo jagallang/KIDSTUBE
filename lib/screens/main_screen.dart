@@ -8,17 +8,19 @@ import '../providers/recommendation_provider.dart';
 import '../core/service_locator.dart';
 import '../core/background_refresh_manager.dart';
 import '../core/cache_analytics.dart';
+import '../core/interfaces/i_storage_service.dart';
 import 'pin_verification_screen.dart';
 import 'channel_management_screen.dart';
 import 'video_player_screen.dart';
 import 'all_channels_screen.dart';
 import 'recommendation_settings_screen.dart';
 import 'api_settings_screen.dart';
+import 'api_test_screen.dart';
 
 class MainScreen extends StatefulWidget {
-  final String apiKey;
+  final String? apiKey;
 
-  const MainScreen({Key? key, required this.apiKey}) : super(key: key);
+  const MainScreen({Key? key, this.apiKey}) : super(key: key);
 
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -28,7 +30,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   late VideoProvider _videoProvider;
   late ChannelProvider _channelProvider;
   late RecommendationProvider _recommendationProvider;
-  late BackgroundRefreshManager _backgroundRefreshManager;
+  BackgroundRefreshManager? _backgroundRefreshManager;
 
   @override
   void initState() {
@@ -50,33 +52,39 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   }
 
   void _initializeProviders() {
-    // Initialize services with API key
-    initializeWithApiKey(widget.apiKey);
-    
-    // Create providers with dependency injection
-    _channelProvider = ProviderFactory.createChannelProvider();
-    _videoProvider = ProviderFactory.createVideoProvider();
-    _recommendationProvider = ProviderFactory.createRecommendationProvider();
-    
-    // Set up provider relationships for reactive updates
-    _videoProvider.setChannelProvider(_channelProvider);
-    
-    // Get background refresh manager
-    _backgroundRefreshManager = getService<BackgroundRefreshManager>();
-    
-    // Load initial data
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // Load subscribed channels and videos
-      await _channelProvider.loadSubscribedChannels();
-      await _videoProvider.loadVideos();
-      await _recommendationProvider.loadWeights();
+    // v2.0.1: 백엔드 서비스 전용 - 기본 Provider만 초기화
+    try {
+      // Create basic providers for v2.0.1 (storage only)
+      _recommendationProvider = RecommendationProvider(
+        storageService: serviceLocator<IStorageService>(),
+      );
       
-      // 백그라운드 새로고침 비활성화 (API 사용량 절약)
-      // _backgroundRefreshManager.startBackgroundRefresh();
+      // Create dummy providers to avoid late initialization errors
+      _videoProvider = VideoProvider(
+        youtubeService: null,
+        storageService: serviceLocator<IStorageService>(),
+      );
       
-      // Clean old analytics data periodically
-      await CacheAnalytics.cleanOldAnalytics();
-    });
+      _channelProvider = ChannelProvider(
+        youtubeService: null,
+        storageService: serviceLocator<IStorageService>(),
+      );
+      
+    } catch (e) {
+      print('Provider initialization error: $e');
+      // Fallback initialization to prevent crashes
+      _recommendationProvider = RecommendationProvider(
+        storageService: serviceLocator<IStorageService>(),
+      );
+      _videoProvider = VideoProvider(
+        youtubeService: null,
+        storageService: serviceLocator<IStorageService>(),
+      );
+      _channelProvider = ChannelProvider(
+        youtubeService: null,
+        storageService: serviceLocator<IStorageService>(),
+      );
+    }
   }
 
   void _openVideo(Video video) {
@@ -97,7 +105,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (_) => ChannelManagementScreen(apiKey: widget.apiKey),
+                builder: (_) => ChannelManagementScreen(apiKey: widget.apiKey ?? ''),
               ),
             );
           },
@@ -148,6 +156,16 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             ),
           ),
           actions: [
+            IconButton(
+              icon: const Icon(Icons.api),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ApiTestScreen()),
+                );
+              },
+              tooltip: 'API 테스트',
+            ),
             IconButton(
               icon: const Icon(Icons.settings),
               onPressed: _openParentSettings,
@@ -391,7 +409,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => AllChannelsScreen(apiKey: widget.apiKey),
+                  builder: (_) => AllChannelsScreen(apiKey: widget.apiKey ?? ''),
                 ),
               );
             },
@@ -593,7 +611,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _backgroundRefreshManager.dispose();
+    _backgroundRefreshManager?.dispose();
     _videoProvider.dispose();
     _channelProvider.dispose();
     _recommendationProvider.dispose();

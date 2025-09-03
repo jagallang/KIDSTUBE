@@ -200,7 +200,7 @@ class BackendService implements IBackendService {
     required String password,
     String? pin,
   }) async {
-    final data = {
+    final data = <String, dynamic>{
       'member': {
         'email': email,
         'name': name,

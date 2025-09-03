@@ -105,14 +105,18 @@ T getService<T extends Object>() => serviceLocator<T>();
 class ProviderFactory {
   static VideoProvider createVideoProvider() {
     return VideoProvider(
-      youtubeService: serviceLocator<IYouTubeService>(),
+      youtubeService: serviceLocator.isRegistered<IYouTubeService>() 
+          ? serviceLocator<IYouTubeService>()
+          : null,
       storageService: serviceLocator<IStorageService>(),
     );
   }
 
   static ChannelProvider createChannelProvider() {
     return ChannelProvider(
-      youtubeService: serviceLocator<IYouTubeService>(),
+      youtubeService: serviceLocator.isRegistered<IYouTubeService>() 
+          ? serviceLocator<IYouTubeService>()
+          : null,
       storageService: serviceLocator<IStorageService>(),
     );
   }

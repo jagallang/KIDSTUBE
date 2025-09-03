@@ -35,14 +35,16 @@ class _PinVerificationScreenState extends State<PinVerificationScreen> {
   }
 
   void _verifyPin() async {
+    print('PIN verification: Entered PIN = $_pin'); // Debug
     final isValid = await StorageService.verifyParentPin(_pin);
+    print('PIN verification: Result = $isValid'); // Debug
     
     if (isValid) {
       widget.onSuccess();
     } else {
       setState(() {
         _attempts++;
-        _errorMessage = '잘못된 PIN입니다 (시도: $_attempts/3)';
+        _errorMessage = '잘못된 PIN입니다 (시도: $_attempts/3) - 입력: $_pin';
         _pin = '';
       });
       
@@ -139,6 +141,11 @@ class _PinVerificationScreenState extends State<PinVerificationScreen> {
             const Text(
               'PIN을 입력해주세요',
               style: TextStyle(fontSize: 18),
+            ),
+            const SizedBox(height: 5),
+            const Text(
+              'v2.0.1 기본 PIN: 1234',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
             ),
             const SizedBox(height: 10),
             if (_errorMessage != null)
