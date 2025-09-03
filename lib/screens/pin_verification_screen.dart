@@ -35,9 +35,12 @@ class _PinVerificationScreenState extends State<PinVerificationScreen> {
   }
 
   void _verifyPin() async {
+    print('PIN 인증 시작: $_pin');
     final isValid = await StorageService.verifyParentPin(_pin);
+    print('인증 결과: $isValid');
     
     if (isValid) {
+      print('PIN 인증 성공! onSuccess 호출');
       widget.onSuccess();
     } else {
       setState(() {

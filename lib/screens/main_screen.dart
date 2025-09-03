@@ -474,6 +474,19 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
               _openParentSettings();
             },
           ),
+          ListTile(
+            leading: const Icon(Icons.lock_reset),
+            title: const Text('PIN 리셋 (디버깅)'),
+            onTap: () async {
+              Navigator.pop(context);
+              await StorageService.clearPin();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('PIN이 리셋되었습니다. 설정 버튼을 다시 눌러주세요.')),
+                );
+              }
+            },
+          ),
         ],
       ),
     );

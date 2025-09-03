@@ -5,7 +5,7 @@
 [![Flutter Version](https://img.shields.io/badge/Flutter-3.29.2-blue.svg)](https://flutter.dev)
 [![Dart Version](https://img.shields.io/badge/Dart-3.7.2-blue.svg)](https://dart.dev)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.2.2--standalone-orange.svg)](https://github.com/jagallang/KIDSTUBE/releases)
+[![Version](https://img.shields.io/badge/Version-1.2.3--standalone-orange.svg)](https://github.com/jagallang/KIDSTUBE/releases)
 
 ## 📱 소개
 
@@ -22,7 +22,7 @@ KidsTube는 부모가 안심하고 자녀에게 보여줄 수 있는 교육적�
 - 🔄 **백그라운드 갱신**: 사용 패턴 기반 자동 콘텐츠 업데이트
 - ☁️ **클라우드 백업**: 구독 채널 자동 백업 및 복원
 
-## 🆕 Standalone 버전 개선사항 (v1.2.2-standalone)
+## 🆕 Standalone 버전 개선사항 (v1.2.3-standalone)
 
 ### 🔧 코드 품질 개선
 - **에러 150개 → 28개로 81% 감소**: 린트 에러 대폭 개선
@@ -40,9 +40,16 @@ KidsTube는 부모가 안심하고 자녀에게 보여줄 수 있는 교육적�
 - **직관적인 접근성**: 설정 버튼 클릭 시 상황에 맞는 화면 자동 표시
 - **안정적인 PIN 시스템**: SHA-256 암호화 적용, 최대 3회 시도 제한
 
+### 🔐 PIN 인증 시스템 완전 해결 (v1.2.3 추가)
+- **PIN 인증 버그 완전 수정**: "잘못된 PIN" 문제 완전 해결
+- **상세 디버깅 로그 추가**: PIN 설정/인증 과정의 모든 단계 추적 가능
+- **PIN 리셋 기능**: 문제 발생 시 쉽게 PIN 초기화 및 재설정 가능
+- **실시간 인증 상태 확인**: 해시 비교 과정까지 상세 로그로 확인
+- **안드로이드/웹 모두 정상 작동**: 크로스 플랫폼 PIN 인증 안정성 확보
+
 ## 🏗️ 아키텍처
 
-### Clean Architecture + Standalone Improvements (v1.2.2-standalone)
+### Clean Architecture + Standalone Improvements (v1.2.3-standalone)
 
 ```
 lib/

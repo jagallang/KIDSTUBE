@@ -48,7 +48,9 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
   }
 
   void _checkPins() async {
+    print('PIN 확인: _pin=$_pin, _confirmPin=$_confirmPin');
     if (_pin == _confirmPin) {
+      print('PIN이 일치합니다. 저장 중...');
       await StorageService.setParentPin(_pin);
       if (!mounted) return;
       Navigator.pushReplacement(

@@ -27,20 +27,39 @@ class StorageService implements IStorageService {
     final prefs = await SharedPreferences.getInstance();
     final hashedPin = sha256.convert(utf8.encode(pin)).toString();
     await prefs.setString(_pinKey, hashedPin);
+    print('PIN 설정 완료: PIN=$pin, Hash=${hashedPin.substring(0, 10)}...');
   }
 
   static Future<bool> verifyParentPin(String pin) async {
     final prefs = await SharedPreferences.getInstance();
     final storedPin = prefs.getString(_pinKey);
-    if (storedPin == null) return false;
+    print('PIN 인증 시도: PIN=$pin');
+    print('저장된 해시: ${storedPin?.substring(0, 10) ?? 'null'}...');
+    
+    if (storedPin == null) {
+      print('저장된 PIN이 없습니다');
+      return false;
+    }
     
     final hashedPin = sha256.convert(utf8.encode(pin)).toString();
-    return storedPin == hashedPin;
+    print('입력 해시: ${hashedPin.substring(0, 10)}...');
+    
+    final isValid = storedPin == hashedPin;
+    print('PIN 인증 결과: $isValid');
+    return isValid;
   }
 
   static Future<bool> hasPin() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.containsKey(_pinKey);
+    final hasPin = prefs.containsKey(_pinKey);
+    print('PIN 존재 여부 확인: $hasPin');
+    return hasPin;
+  }
+
+  static Future<void> clearPin() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_pinKey);
+    print('PIN 삭제 완료');
   }
 
   static Future<void> saveChannelsStatic(List<Channel> channels) async {
