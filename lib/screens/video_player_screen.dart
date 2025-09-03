@@ -5,7 +5,7 @@ import '../models/video.dart';
 class VideoPlayerScreen extends StatefulWidget {
   final Video video;
 
-  const VideoPlayerScreen({Key? key, required this.video}) : super(key: key);
+  const VideoPlayerScreen({super.key, required this.video});
 
   @override
   State<VideoPlayerScreen> createState() => _VideoPlayerScreenState();

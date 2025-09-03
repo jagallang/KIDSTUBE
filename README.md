@@ -5,7 +5,7 @@
 [![Flutter Version](https://img.shields.io/badge/Flutter-3.29.2-blue.svg)](https://flutter.dev)
 [![Dart Version](https://img.shields.io/badge/Dart-3.7.2-blue.svg)](https://dart.dev)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.1.07-orange.svg)](https://github.com/yourusername/kidstube/releases)
+[![Version](https://img.shields.io/badge/Version-1.2.2--standalone-orange.svg)](https://github.com/jagallang/KIDSTUBE/releases)
 
 ## 📱 소개
 
@@ -22,9 +22,27 @@ KidsTube는 부모가 안심하고 자녀에게 보여줄 수 있는 교육적�
 - 🔄 **백그라운드 갱신**: 사용 패턴 기반 자동 콘텐츠 업데이트
 - ☁️ **클라우드 백업**: 구독 채널 자동 백업 및 복원
 
+## 🆕 Standalone 버전 개선사항 (v1.2.2-standalone)
+
+### 🔧 코드 품질 개선
+- **에러 150개 → 28개로 81% 감소**: 린트 에러 대폭 개선
+- **UI 오버플로우 수정**: 작은 화면에서도 안정적인 UI 제공
+- **Deprecated API 수정**: `withOpacity()` → `withValues(alpha:)` 최신 권장사항 적용
+- **사용하지 않는 코드 정리**: import, 함수, 필드 등 불필요한 코드 제거
+
+### 🚀 사용성 개선  
+- **첫화면을 메인화면으로 변경**: 복잡한 설정 과정 생략, 바로 앱 체험 가능
+- **부모 인증 PIN 설정 개선**: PIN 미설정 시 자동으로 설정 화면 안내
+- **데모 API 키 적용**: 별도 설정 없이 바로 실행 가능
+
+### 🎯 사용자 경험 향상
+- **간소화된 초기 설정**: API 키 → PIN 설정 → 채널 관리 단계 간소화
+- **직관적인 접근성**: 설정 버튼 클릭 시 상황에 맞는 화면 자동 표시
+- **안정적인 PIN 시스템**: SHA-256 암호화 적용, 최대 3회 시도 제한
+
 ## 🏗️ 아키텍처
 
-### Clean Architecture + Enhanced Weight System (v1.1.07)
+### Clean Architecture + Standalone Improvements (v1.2.2-standalone)
 
 ```
 lib/

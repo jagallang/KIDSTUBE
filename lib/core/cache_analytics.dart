@@ -95,10 +95,15 @@ class CacheAnalytics {
       
       // Access frequency factor (40% weight)
       final accessFrequency = await getAccessFrequency(cacheKey);
-      if (accessFrequency >= 50) score += 40;
-      else if (accessFrequency >= 20) score += 30;
-      else if (accessFrequency >= 10) score += 20;
-      else if (accessFrequency >= 5) score += 10;
+      if (accessFrequency >= 50) {
+        score += 40;
+      } else if (accessFrequency >= 20) {
+        score += 30;
+      } else if (accessFrequency >= 10) {
+        score += 20;
+      } else if (accessFrequency >= 5) {
+        score += 10;
+      }
       
       // Recency factor (30% weight)
       final lastAccess = await getLastAccessTime(cacheKey);

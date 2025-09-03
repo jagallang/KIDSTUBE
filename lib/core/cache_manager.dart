@@ -1,4 +1,3 @@
-import '../models/channel.dart';
 
 /// Smart cache manager for differentiated TTL strategies
 /// Provides optimized caching durations based on data types and usage patterns

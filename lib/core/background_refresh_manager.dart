@@ -42,11 +42,11 @@ class BackgroundRefreshManager {
     // Start auto backup timer (every 6 hours)
     if (_backupService != null) {
       _backupTimer = Timer(const Duration(minutes: 10), () {
-        _backupService!.autoBackupIfNeeded();
+        _backupService.autoBackupIfNeeded();
         
         _backupTimer = Timer.periodic(
           const Duration(hours: 6),
-          (_) => _backupService!.autoBackupIfNeeded(),
+          (_) => _backupService.autoBackupIfNeeded(),
         );
       });
     }
@@ -185,19 +185,31 @@ class BackgroundRefreshManager {
     
     // Age factor (older cache = higher priority)
     final hoursOld = age.inHours;
-    if (hoursOld >= 12) score += 50;
-    else if (hoursOld >= 6) score += 30;
-    else if (hoursOld >= 3) score += 10;
+    if (hoursOld >= 12) {
+      score += 50;
+    } else if (hoursOld >= 6) {
+      score += 30;
+    } else if (hoursOld >= 3) {
+      score += 10;
+    }
     
     // Subscriber count factor (popular channels = higher priority)
-    if (subscriberCount >= 5000000) score += 30;
-    else if (subscriberCount >= 1000000) score += 20;
-    else if (subscriberCount >= 100000) score += 10;
+    if (subscriberCount >= 5000000) {
+      score += 30;
+    } else if (subscriberCount >= 1000000) {
+      score += 20;
+    } else if (subscriberCount >= 100000) {
+      score += 10;
+    }
     
     // View count factor (frequently accessed = higher priority)
-    if (viewCount >= 20) score += 25;
-    else if (viewCount >= 10) score += 15;
-    else if (viewCount >= 5) score += 5;
+    if (viewCount >= 20) {
+      score += 25;
+    } else if (viewCount >= 10) {
+      score += 15;
+    } else if (viewCount >= 5) {
+      score += 5;
+    }
     
     return score;
   }
@@ -259,16 +271,6 @@ class BackgroundRefreshManager {
     }
   }
 
-  /// Get view count for a cache key
-  Future<int> _getViewCount(String key) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      return prefs.getInt('cache_viewcount_$key') ?? 0;
-    } catch (e) {
-      print('Error getting view count for $key: $e');
-      return 0;
-    }
-  }
 
   /// Parse subscriber count from string
   int _parseSubscriberCount(String subscriberCountStr) {

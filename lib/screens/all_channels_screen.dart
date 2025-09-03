@@ -14,7 +14,6 @@ class AllChannelsScreen extends StatefulWidget {
 }
 
 class _AllChannelsScreenState extends State<AllChannelsScreen> {
-  late YouTubeService _youtubeService;
   List<Channel> _subscribedChannels = [];
   List<Channel> _filteredChannels = [];
   bool _isLoading = true;
@@ -37,7 +36,6 @@ class _AllChannelsScreenState extends State<AllChannelsScreen> {
   @override
   void initState() {
     super.initState();
-    _youtubeService = YouTubeService(apiKey: widget.apiKey);
     _loadSubscribedChannels();
   }
 

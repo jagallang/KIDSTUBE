@@ -71,11 +71,12 @@ class _ApiKeySetupScreenState extends State<ApiKeySetupScreen> {
       appBar: AppBar(
         title: const Text('KidsTube API 설정'),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
             const Icon(
               Icons.key,
               size: 80,
@@ -168,7 +169,8 @@ class _ApiKeySetupScreenState extends State<ApiKeySetupScreen> {
                 ],
               ),
             ),
-          ],
+            ],
+          ),
         ),
       ),
     );

@@ -153,9 +153,9 @@ class _RecommendationSettingsScreenState extends State<RecommendationSettingsScr
                   constraints: const BoxConstraints(minWidth: 40),
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
+                    color: color.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: color.withOpacity(0.3)),
+                    border: Border.all(color: color.withValues(alpha: 0.3)),
                   ),
                   child: Text(
                     currentValue.toString(),
@@ -174,8 +174,8 @@ class _RecommendationSettingsScreenState extends State<RecommendationSettingsScr
               data: SliderTheme.of(context).copyWith(
                 activeTrackColor: color,
                 thumbColor: color,
-                inactiveTrackColor: color.withOpacity(0.3),
-                overlayColor: color.withOpacity(0.1),
+                inactiveTrackColor: color.withValues(alpha: 0.3),
+                overlayColor: color.withValues(alpha: 0.1),
               ),
               child: Slider(
                 value: currentValue.toDouble(),

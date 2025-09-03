@@ -9,7 +9,9 @@ import '../core/service_locator.dart';
 import '../core/background_refresh_manager.dart';
 import '../core/cache_analytics.dart';
 import 'pin_verification_screen.dart';
+import 'pin_setup_screen.dart';
 import 'channel_management_screen.dart';
+import '../services/storage_service.dart';
 import 'video_player_screen.dart';
 import 'all_channels_screen.dart';
 import 'recommendation_settings_screen.dart';
@@ -88,22 +90,37 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     );
   }
 
-  void _openParentSettings() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => PinVerificationScreen(
-          onSuccess: () {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (_) => ChannelManagementScreen(apiKey: widget.apiKey),
-              ),
-            );
-          },
+  void _openParentSettings() async {
+    final hasPin = await StorageService.hasPin();
+    
+    if (!mounted) return;
+    
+    if (hasPin) {
+      // PIN이 설정되어 있으면 인증 화면으로
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PinVerificationScreen(
+            onSuccess: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ChannelManagementScreen(apiKey: widget.apiKey),
+                ),
+              );
+            },
+          ),
         ),
-      ),
-    );
+      );
+    } else {
+      // PIN이 설정되어 있지 않으면 PIN 설정 화면으로
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PinSetupScreen(apiKey: widget.apiKey),
+        ),
+      );
+    }
   }
 
   String _formatPublishedTime(String publishedAt) {
