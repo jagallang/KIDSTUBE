@@ -64,11 +64,34 @@ void initializeWithApiKey(String apiKey) {
   if (serviceLocator.isRegistered<BackgroundRefreshManager>()) {
     serviceLocator.unregister<BackgroundRefreshManager>();
   }
+  
+  // Unregister providers to force them to use new service
+  if (serviceLocator.isRegistered<VideoProvider>()) {
+    serviceLocator.unregister<VideoProvider>();
+  }
+  if (serviceLocator.isRegistered<ChannelProvider>()) {
+    serviceLocator.unregister<ChannelProvider>();
+  }
 
   // Register Enhanced YouTube service with graceful fallback and smart caching
   serviceLocator.registerLazySingleton<IYouTubeService>(
     () => EnhancedYouTubeService(
       baseService: YouTubeService(apiKey: apiKey),
+    ),
+  );
+
+  // Re-register providers with new YouTube service
+  serviceLocator.registerFactory<ChannelProvider>(
+    () => ChannelProvider(
+      youtubeService: serviceLocator<IYouTubeService>(),
+      storageService: serviceLocator<IStorageService>(),
+    ),
+  );
+
+  serviceLocator.registerFactory<VideoProvider>(
+    () => VideoProvider(
+      youtubeService: serviceLocator<IYouTubeService>(),
+      storageService: serviceLocator<IStorageService>(),
     ),
   );
 

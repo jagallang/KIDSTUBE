@@ -16,34 +16,67 @@ class YouTubeService implements IYouTubeService {
 
   @override
   Future<List<Channel>> searchChannels(String query) async {
+    print('🔍 YouTube 채널 검색 시작: "$query"');
+    print('🔑 사용 중인 API 키: ${apiKey.substring(0, 8)}...');
+    
     // 테스트 모드일 때 더미 데이터 반환
     if (apiKey == 'TEST_API_KEY') {
+      print('🧪 테스트 모드: 더미 데이터 반환');
       return _getDummyChannels(query);
     }
     
     try {
-      // API 사용량 최적화: search.list 대신 직접 채널 ID로 조회
-      // 일반적인 키즈 채널들을 미리 정의하여 검색
-      final predefinedChannels = _getPredefinedKidsChannels();
+      // 실제 YouTube Search API 사용
+      // API 사용량 체크 (search.list는 100 units 소모)
+      final canCall = await ApiUsageTracker.trackApiCall('search.list');
+      if (!canCall) {
+        print('API 일일 제한 도달 - 채널 검색 차단');
+        return [];
+      }
       
-      // 검색어와 매칭되는 사전 정의 채널 찾기
-      final matchingChannels = predefinedChannels.where((channel) =>
-        channel['title']!.toLowerCase().contains(query.toLowerCase()) ||
-        channel['keywords']!.toLowerCase().contains(query.toLowerCase())
-      ).toList();
+      print('Searching channels with query: $query');
       
-      if (matchingChannels.isNotEmpty) {
-        // API 사용량 체크
-        final canCall = await ApiUsageTracker.trackApiCall('channels.list');
-        if (!canCall) {
-          print('API 일일 제한 도달 - 채널 검색 차단');
+      // YouTube Search API로 채널 검색
+      final searchResponse = await http.get(
+        Uri.parse('$baseUrl/search').replace(queryParameters: {
+          'part': 'snippet',
+          'q': query,
+          'type': 'channel',
+          'key': apiKey,
+          'maxResults': '20',
+          'relevanceLanguage': 'ko',  // 한국어 콘텐츠 우선
+          'safeSearch': 'strict',     // 어린이 안전 검색
+        }),
+      );
+      
+      print('Search API response status: ${searchResponse.statusCode}');
+      
+      if (searchResponse.statusCode == 200) {
+        final searchData = json.decode(searchResponse.body);
+        print('✅ Search API response received');
+        print('📊 Full search response: ${searchResponse.body.substring(0, 500)}...');
+        
+        final searchItems = searchData['items'] as List? ?? [];
+        print('📝 Found ${searchItems.length} search items');
+        
+        if (searchItems.isEmpty) {
+          print('❌ No search results found');
           return [];
         }
         
-        // 매칭된 채널 ID들로 직접 조회 (1 unit per request)
-        final channelIds = matchingChannels.map((c) => c['id']!).take(10).join(',');
+        // 검색 결과에서 채널 ID 추출
+        final channelIds = searchItems
+            .map((item) {
+              print('🆔 Channel ID found: ${item['snippet']['channelId']}');
+              return item['snippet']['channelId'] as String;
+            })
+            .join(',');
         
-        final response = await http.get(
+        print('🔗 Channel IDs to fetch: $channelIds');
+        print('📤 Found ${searchItems.length} channels, fetching details...');
+        
+        // 채널 상세 정보 조회 (1 unit per request)
+        final channelsResponse = await http.get(
           Uri.parse('$baseUrl/channels').replace(queryParameters: {
             'part': 'snippet,statistics,contentDetails',
             'id': channelIds,
@@ -51,20 +84,37 @@ class YouTubeService implements IYouTubeService {
           }),
         );
         
-        if (response.statusCode == 200) {
-          final data = json.decode(response.body);
-          final items = data['items'] as List? ?? [];
-          final channels = items.map((item) => Channel.fromJson(item)).toList();
+        if (channelsResponse.statusCode == 200) {
+          final channelsData = json.decode(channelsResponse.body);
+          print('✅ Channels API response received');
+          print('📊 Channels response: ${channelsResponse.body.substring(0, 300)}...');
+          
+          final channelItems = channelsData['items'] as List? ?? [];
+          print('📝 Channel items count: ${channelItems.length}');
+          
+          final channels = channelItems.map((item) => Channel.fromJson(item)).toList();
+          
+          print('🎯 Successfully fetched ${channels.length} channel details');
           
           // 구독자 수 1만명 이상인 채널만 필터링
-          return channels.where((channel) {
+          final filteredChannels = channels.where((channel) {
             final subscriberCount = _parseSubscriberCount(channel.subscriberCount);
+            print('👥 Channel ${channel.title}: ${channel.subscriberCount} subscribers (parsed: $subscriberCount)');
             return subscriberCount >= 10000;
           }).toList();
+          
+          print('✨ Filtered to ${filteredChannels.length} channels with 10k+ subscribers');
+          print('📋 Final channels: ${filteredChannels.map((c) => c.title).join(', ')}');
+          
+          return filteredChannels;
+        } else {
+          print('Error fetching channel details: ${channelsResponse.statusCode}');
         }
+      } else {
+        print('Search API error: ${searchResponse.statusCode}');
+        print('Response body: ${searchResponse.body}');
       }
       
-      // 사전 정의된 채널이 없을 경우 빈 결과 반환 (API 호출 없음)
       return [];
       
     } catch (e) {

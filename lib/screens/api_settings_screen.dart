@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/storage_service.dart';
 import '../services/youtube_service.dart';
+import '../core/service_locator.dart';
 import 'background_refresh_settings_screen.dart';
 
 class ApiSettingsScreen extends StatefulWidget {
@@ -64,9 +65,14 @@ class _ApiSettingsScreenState extends State<ApiSettingsScreen> {
 
       if (isValid) {
         await StorageService.saveApiKey(apiKey);
+        
+        // 서비스 재초기화 - 새로운 API 키로 YouTube 서비스 업데이트
+        initializeWithApiKey(apiKey);
+        print('🔄 YouTube 서비스가 새로운 API 키로 재초기화되었습니다: ${apiKey.substring(0, 8)}...');
+        
         await _loadSavedApiKey();
         _apiKeyController.clear();
-        _showSnackBar('API 키가 저장되었습니다', isError: false);
+        _showSnackBar('API 키가 저장되고 서비스가 업데이트되었습니다', isError: false);
       } else {
         _showSnackBar(
           'API 키 검증 실패:\n'

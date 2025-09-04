@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import '../services/storage_service.dart';
+import 'pin_setup_screen.dart';
 
 class PinVerificationScreen extends StatefulWidget {
   final VoidCallback onSuccess;
+  final String? apiKey;
 
-  const PinVerificationScreen({Key? key, required this.onSuccess}) : super(key: key);
+  const PinVerificationScreen({Key? key, required this.onSuccess, this.apiKey}) : super(key: key);
 
   @override
   State<PinVerificationScreen> createState() => _PinVerificationScreenState();
@@ -36,6 +38,22 @@ class _PinVerificationScreenState extends State<PinVerificationScreen> {
 
   void _verifyPin() async {
     print('PIN 인증 시작: $_pin');
+    
+    // PIN이 설정되어 있는지 먼저 확인
+    final hasPin = await StorageService.hasPin();
+    if (!hasPin) {
+      print('PIN이 설정되지 않았습니다. PIN 설정 화면으로 이동');
+      // PIN이 없으면 설정 화면으로 전환
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PinSetupScreen(apiKey: widget.apiKey ?? 'default_api_key'),
+        ),
+      );
+      return;
+    }
+    
     final isValid = await StorageService.verifyParentPin(_pin);
     print('인증 결과: $isValid');
     

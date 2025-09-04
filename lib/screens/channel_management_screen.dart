@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/channel.dart';
-import '../services/youtube_service.dart';
+import '../core/interfaces/i_youtube_service.dart';
+import '../core/service_locator.dart';
 import '../services/storage_service.dart';
 import 'main_screen.dart';
 import 'recommendation_settings_screen.dart';
@@ -16,7 +17,7 @@ class ChannelManagementScreen extends StatefulWidget {
 }
 
 class _ChannelManagementScreenState extends State<ChannelManagementScreen> {
-  late YouTubeService _youtubeService;
+  late IYouTubeService _youtubeService;
   final _searchController = TextEditingController();
   List<Channel> _searchResults = [];
   List<Channel> _popularChannels = [];
@@ -25,6 +26,7 @@ class _ChannelManagementScreenState extends State<ChannelManagementScreen> {
   bool _isLoading = true;
   bool _isLoadingPopular = true;
   bool _hasSearched = false;
+  bool _isTestMode = false;
 
   // 인기 한국 키즈 채널들
   final List<String> _popularChannelNames = [
@@ -48,7 +50,8 @@ class _ChannelManagementScreenState extends State<ChannelManagementScreen> {
   @override
   void initState() {
     super.initState();
-    _youtubeService = YouTubeService(apiKey: widget.apiKey);
+    _youtubeService = getService<IYouTubeService>();
+    _isTestMode = widget.apiKey == 'TEST_API_KEY';
     _loadSubscribedChannels();
     _loadPopularChannels();
   }
@@ -97,8 +100,13 @@ class _ChannelManagementScreenState extends State<ChannelManagementScreen> {
   }
 
   Future<void> _searchChannels() async {
+    print('🚀 [Android Debug] _searchChannels() method called!');
+    
     final query = _searchController.text.trim();
+    print('🚀 [Android Debug] Search query: "$query"');
+    
     if (query.isEmpty) {
+      print('🚀 [Android Debug] Empty query, clearing results');
       setState(() {
         _hasSearched = false;
         _searchResults = [];
@@ -106,17 +114,21 @@ class _ChannelManagementScreenState extends State<ChannelManagementScreen> {
       return;
     }
 
+    print('🚀 [Android Debug] Starting search with query: "$query"');
     setState(() {
       _isSearching = true;
       _hasSearched = true;
     });
 
+    print('🚀 [Android Debug] Calling _youtubeService.searchChannels()');
     final results = await _youtubeService.searchChannels(query);
+    print('🚀 [Android Debug] Search completed, got ${results.length} results');
 
     setState(() {
       _searchResults = results;
       _isSearching = false;
     });
+    print('🚀 [Android Debug] UI updated with search results');
   }
 
   Future<void> _addChannel(Channel channel) async {
@@ -263,6 +275,27 @@ class _ChannelManagementScreenState extends State<ChannelManagementScreen> {
       ),
       body: Column(
         children: [
+          if (_isTestMode)
+            Container(
+              width: double.infinity,
+              color: Colors.orange.shade100,
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded, color: Colors.orange.shade800),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '테스트 모드: 샘플 채널이 표시됩니다. 실제 검색을 사용하려면 유효한 YouTube API 키가 필요합니다.',
+                      style: TextStyle(
+                        color: Colors.orange.shade800,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.all(16),
             child: Row(

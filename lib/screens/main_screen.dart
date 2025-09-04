@@ -101,6 +101,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         context,
         MaterialPageRoute(
           builder: (_) => PinVerificationScreen(
+            apiKey: widget.apiKey,
             onSuccess: () {
               Navigator.pushReplacement(
                 context,
@@ -431,6 +432,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                 context,
                 MaterialPageRoute(
                   builder: (_) => PinVerificationScreen(
+                    apiKey: widget.apiKey,
                     onSuccess: () {
                       Navigator.pushReplacement(
                         context,
@@ -453,6 +455,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                 context,
                 MaterialPageRoute(
                   builder: (_) => PinVerificationScreen(
+                    apiKey: widget.apiKey,
                     onSuccess: () {
                       Navigator.pushReplacement(
                         context,

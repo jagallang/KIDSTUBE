@@ -27,9 +27,11 @@ class ApiUsageTracker {
     
     // 제한 체크
     if (currentUsage + cost > _dailyLimit) {
-      print('⚠️ API 일일 제한 도달: $currentUsage/$_dailyLimit units');
+      print('⚠️ API 일일 제한 도달: $currentUsage/$_dailyLimit units (비용: $cost)');
       return false; // API 호출 차단
     }
+    
+    print('✅ API 호출 허용: $apiMethod (비용: $cost) - 현재: $currentUsage/$_dailyLimit');
     
     // 사용량 업데이트
     await prefs.setInt(_dailyUsageKey, currentUsage + cost);
