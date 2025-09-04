@@ -5,7 +5,7 @@
 [![Flutter Version](https://img.shields.io/badge/Flutter-3.29.2-blue.svg)](https://flutter.dev)
 [![Dart Version](https://img.shields.io/badge/Dart-3.7.2-blue.svg)](https://dart.dev)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.2.3--standalone-orange.svg)](https://github.com/jagallang/KIDSTUBE/releases)
+[![Version](https://img.shields.io/badge/Version-1.3.0--standalone-orange.svg)](https://github.com/jagallang/KIDSTUBE/releases)
 
 ## 📱 소개
 
@@ -176,6 +176,16 @@ dependencies:
 - **데이터 검증**: 백업 무결성 체크 및 오류 복구
 
 ## 🔄 버전 히스토리
+
+### v1.3.0 (2025-01-XX) 🔧
+- **🔑 완전한 API 키 관리 시스템**: 사용자 정의 API 키 입력, 검증, 저장 기능
+- **🔄 서비스 재초기화 로직**: API 키 변경 시 모든 서비스와 프로바이더 자동 업데이트
+- **🔗 의존성 주입 개선**: Service Locator 패턴으로 일관성 있는 서비스 사용
+- **🛠 채널 저장/영상 로딩 수정**: Provider 캐시 문제 해결로 완전한 기능 복원
+- **🐛 디버그 로깅 시스템**: 종합적인 문제 추적 및 해결 지원
+- **📊 API 사용량 모니터링**: 상세한 비용 추적 및 할당량 관리
+- **🧪 테스트 모드 개선**: API 키 없이도 완전한 앱 체험 가능
+- **🔧 프로바이더 재등록 시스템**: 새 API 키로 모든 컴포넌트 동기화
 
 ### v1.1.07 (2025-01-XX) 🎯
 - **🔧 가중치 시스템 완전 수정**: 부모 설정 가중치가 정확히 작동하도록 알고리즘 재설계
