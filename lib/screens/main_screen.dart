@@ -55,13 +55,10 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     // Initialize services with API key
     initializeWithApiKey(widget.apiKey);
     
-    // Create providers with dependency injection
-    _channelProvider = ProviderFactory.createChannelProvider();
-    _videoProvider = ProviderFactory.createVideoProvider();
-    _recommendationProvider = ProviderFactory.createRecommendationProvider();
-    
-    // Set up provider relationships for reactive updates
-    _videoProvider.setChannelProvider(_channelProvider);
+    // Use global providers from MultiProvider
+    _channelProvider = Provider.of<ChannelProvider>(context, listen: false);
+    _videoProvider = Provider.of<VideoProvider>(context, listen: false);
+    _recommendationProvider = Provider.of<RecommendationProvider>(context, listen: false);
     
     // Get background refresh manager
     _backgroundRefreshManager = getService<BackgroundRefreshManager>();

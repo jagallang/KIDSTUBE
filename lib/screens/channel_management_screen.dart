@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/channel.dart';
 import '../core/interfaces/i_youtube_service.dart';
 import '../core/service_locator.dart';
 import '../services/storage_service.dart';
+import '../providers/channel_provider.dart';
+import '../providers/video_provider.dart';
 import 'main_screen.dart';
 import 'recommendation_settings_screen.dart';
 
@@ -57,9 +60,12 @@ class _ChannelManagementScreenState extends State<ChannelManagementScreen> {
   }
 
   Future<void> _loadSubscribedChannels() async {
-    final channels = await StorageService.getChannels();
+    // Use global ChannelProvider instead of direct StorageService
+    final channelProvider = Provider.of<ChannelProvider>(context, listen: false);
+    await channelProvider.loadSubscribedChannels();
+    
     setState(() {
-      _subscribedChannels = channels;
+      _subscribedChannels = channelProvider.subscribedChannels;
       _isLoading = false;
     });
   }
@@ -132,21 +138,39 @@ class _ChannelManagementScreenState extends State<ChannelManagementScreen> {
   }
 
   Future<void> _addChannel(Channel channel) async {
-    await StorageService.addChannel(channel);
+    // Use global ChannelProvider instead of direct StorageService
+    final channelProvider = Provider.of<ChannelProvider>(context, listen: false);
+    final videoProvider = Provider.of<VideoProvider>(context, listen: false);
+    
+    await channelProvider.subscribeToChannel(channel);
     await _loadSubscribedChannels();
     
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${channel.title} 채널이 추가되었습니다')),
-    );
+    // Trigger video refresh
+    await videoProvider.loadVideos();
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${channel.title} 채널이 추가되었습니다')),
+      );
+    }
   }
 
   Future<void> _removeChannel(String channelId) async {
-    await StorageService.removeChannel(channelId);
+    // Use global ChannelProvider instead of direct StorageService
+    final channelProvider = Provider.of<ChannelProvider>(context, listen: false);
+    final videoProvider = Provider.of<VideoProvider>(context, listen: false);
+    
+    await channelProvider.unsubscribeFromChannel(channelId);
     await _loadSubscribedChannels();
     
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('채널이 삭제되었습니다')),
-    );
+    // Trigger video refresh
+    await videoProvider.loadVideos();
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('채널이 삭제되었습니다')),
+      );
+    }
   }
 
   void _showUnsubscribeDialog(Channel channel) {

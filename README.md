@@ -5,7 +5,7 @@
 [![Flutter Version](https://img.shields.io/badge/Flutter-3.29.2-blue.svg)](https://flutter.dev)
 [![Dart Version](https://img.shields.io/badge/Dart-3.7.2-blue.svg)](https://dart.dev)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.3.0--standalone-orange.svg)](https://github.com/jagallang/KIDSTUBE/releases)
+[![Version](https://img.shields.io/badge/Version-1.3.01--standalone-orange.svg)](https://github.com/jagallang/KIDSTUBE/releases)
 
 ## 📱 소개
 
@@ -176,6 +176,14 @@ dependencies:
 - **데이터 검증**: 백업 무결성 체크 및 오류 복구
 
 ## 🔄 버전 히스토리
+
+### v1.3.01 (2025-09-04) 🔧 **Provider 시스템 대폭 개선**
+- **🌍 전역 Provider 트리 설정**: MultiProvider로 모든 화면에서 동일한 Provider 인스턴스 공유
+- **🔗 Provider 인스턴스 분리 문제 해결**: 메인 화면과 채널 관리 화면 간의 데이터 동기화 문제 완전 해결
+- **📺 영상 로드 및 썸네일 표시 기능 복원**: ChannelProvider와 VideoProvider 간의 올바른 연결로 완전한 기능 복원
+- **🔄 실시간 Provider 동기화**: 채널 추가/삭제 시 VideoProvider가 자동으로 영상 리스트 업데이트
+- **🛠 BuildContext 안전성 개선**: mounted 체크로 상태 업데이트 안전성 강화
+- **⚡ ChangeNotifierProxyProvider 활용**: 의존성 있는 Provider 간의 완벽한 상호작용 구현
 
 ### v1.3.0 (2025-01-XX) 🔧
 - **🔑 완전한 API 키 관리 시스템**: 사용자 정의 API 키 입력, 검증, 저장 기능
