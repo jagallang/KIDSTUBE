@@ -74,21 +74,7 @@ class StorageService implements IStorageService {
     if (channelsString == null) return [];
     
     final List<dynamic> channelsJson = json.decode(channelsString);
-    return channelsJson.map((json) {
-      // 기존 데이터와의 호환성을 위해 uploadsPlaylistId가 없으면 채널 ID에서 생성
-      String uploadsPlaylistId = json['uploadsPlaylistId'] ?? '';
-      if (uploadsPlaylistId.isEmpty && json['id'] != null && json['id'].startsWith('UC')) {
-        uploadsPlaylistId = json['id'].replaceFirst('UC', 'UU');
-      }
-      
-      return Channel(
-        id: json['id'],
-        title: json['title'],
-        thumbnail: json['thumbnail'],
-        subscriberCount: json['subscriberCount'],
-        uploadsPlaylistId: uploadsPlaylistId,
-      );
-    }).toList();
+    return channelsJson.map((json) => Channel.fromJson(json)).toList();
   }
 
   static Future<void> addChannel(Channel channel) async {

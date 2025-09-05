@@ -29,9 +29,9 @@ class Channel {
       channelId = json['id']['channelId'] ?? '';
     }
 
-    // 구독자 수 포맷팅
+    // 구독자 수 포맷팅 - statistics가 null일 때 기본값 설정
     String subscriberCount = '0';
-    if (statistics['subscriberCount'] != null) {
+    if (statistics != null && statistics['subscriberCount'] != null) {
       final count = int.tryParse(statistics['subscriberCount'].toString()) ?? 0;
       if (count >= 1000000) {
         subscriberCount = '${(count / 1000000).toStringAsFixed(1)}M';

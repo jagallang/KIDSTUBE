@@ -31,12 +31,23 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   late ChannelProvider _channelProvider;
   late RecommendationProvider _recommendationProvider;
   late BackgroundRefreshManager _backgroundRefreshManager;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _initializeProviders();
+    _setupScrollController();
+  }
+  
+  void _setupScrollController() {
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+        // 스크롤이 끝에서 200px 전에 도달했을 때 추가 로드
+        _videoProvider.loadMoreVideos();
+      }
+    });
   }
   
   
@@ -603,21 +614,62 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildVideoGrid() {
-    return Selector<VideoProvider, List<Video>>(
-      selector: (context, provider) => provider.videos,
-      builder: (context, videos, child) {
-        return GridView.builder(
-          padding: const EdgeInsets.all(8),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            childAspectRatio: 16 / 14,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-          ),
-          itemCount: videos.length,
-          itemBuilder: (context, index) {
-            return _buildVideoCard(videos[index]);
-          },
+    return Selector2<VideoProvider, VideoProvider, ({List<Video> videos, bool isLoadingMore, bool hasMoreVideos})>(
+      selector: (context, provider, _) => (
+        videos: provider.videos,
+        isLoadingMore: provider.isLoadingMore,
+        hasMoreVideos: provider.hasMoreVideos,
+      ),
+      builder: (context, state, child) {
+        return CustomScrollView(
+          controller: _scrollController,
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.all(8),
+              sliver: SliverGrid(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  childAspectRatio: 16 / 14,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                ),
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    return _buildVideoCard(state.videos[index]);
+                  },
+                  childCount: state.videos.length,
+                ),
+              ),
+            ),
+            
+            // Loading indicator at bottom
+            if (state.isLoadingMore)
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                ),
+              ),
+              
+            // End of content indicator
+            if (!state.hasMoreVideos && state.videos.isNotEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Center(
+                    child: Text(
+                      '모든 추천 영상을 확인했습니다',
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
         );
       },
     );
@@ -625,6 +677,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _scrollController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     _backgroundRefreshManager.dispose();
     // Don't dispose providers - they are managed by MultiProvider

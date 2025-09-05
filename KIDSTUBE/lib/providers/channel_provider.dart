@@ -126,6 +126,14 @@ class ChannelProvider extends CacheableProvider<List<Channel>> {
           return;
         }
 
+        DebugLogger.logFlow('ChannelProvider.subscribeToChannel: Adding channel', data: {
+          'channelId': channel.id,
+          'title': channel.title,
+          'thumbnail': channel.thumbnail.isEmpty ? 'EMPTY' : 'OK',
+          'subscriberCount': channel.subscriberCount,
+          'category': channel.category
+        });
+
         final updatedChannels = [..._subscribedChannels, channel];
         await _storageService.storeChannels(updatedChannels);
         

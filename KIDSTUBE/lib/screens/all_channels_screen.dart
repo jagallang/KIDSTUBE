@@ -40,6 +40,11 @@ class _AllChannelsScreenState extends State<AllChannelsScreen> {
 
   Future<void> _loadSubscribedChannels() async {
     final channels = await StorageService.getChannels();
+    print('[DEBUG] AllChannelsScreen._loadSubscribedChannels: loaded ${channels.length} channels');
+    for (int i = 0; i < channels.length && i < 3; i++) {
+      final channel = channels[i];
+      print('[DEBUG] Channel $i: id=${channel.id}, title=${channel.title}, thumbnail=${channel.thumbnail.isNotEmpty ? 'OK' : 'EMPTY'}, subscribers=${channel.subscriberCount}');
+    }
     if (mounted) {
       setState(() {
         _subscribedChannels = channels;
@@ -248,6 +253,7 @@ class _AllChannelsScreenState extends State<AllChannelsScreen> {
 
   Widget _buildChannelAvatar(Channel channel) {
     if (channel.thumbnail.isEmpty) {
+      // 썸네일이 없는 경우 이니셜로 대체
       return CircleAvatar(
         backgroundColor: Colors.red.shade400,
         child: Text(
@@ -260,11 +266,28 @@ class _AllChannelsScreenState extends State<AllChannelsScreen> {
       );
     }
 
-    return CircleAvatar(
-      backgroundImage: CachedNetworkImageProvider(channel.thumbnail),
-      onBackgroundImageError: (exception, stackTrace) {
-        print('Error loading thumbnail for ${channel.title}: $exception');
+    return CachedNetworkImage(
+      imageUrl: channel.thumbnail,
+      placeholder: (context, url) => CircleAvatar(
+        backgroundColor: Colors.grey.shade300,
+        child: Icon(Icons.account_circle, color: Colors.grey.shade600),
+      ),
+      errorWidget: (context, url, error) {
+        print('Error loading thumbnail for ${channel.title}: $error');
+        return CircleAvatar(
+          backgroundColor: Colors.red.shade400,
+          child: Text(
+            channel.title.isNotEmpty ? channel.title.substring(0, 1).toUpperCase() : '?',
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        );
       },
+      imageBuilder: (context, imageProvider) => CircleAvatar(
+        backgroundImage: imageProvider,
+      ),
     );
   }
 
