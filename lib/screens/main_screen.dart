@@ -35,6 +35,9 @@ class _MainScreenState extends State<MainScreen> {
   // 성능 최적화: 중복 ID를 인스턴스 변수로 유지
   final Set<String> _existingVideoIds = <String>{};
   
+  // 스크롤 중복 호출 방지
+  double _lastTriggerPosition = 0.0;
+  
   final ScrollController _scrollController = ScrollController();
 
   @override
@@ -58,13 +61,15 @@ class _MainScreenState extends State<MainScreen> {
     final scrollPosition = _scrollController.position.pixels;
     final maxScroll = _scrollController.position.maxScrollExtent;
     
-    // 프리로딩: 100px 지점에서 미리 로딩 시작
-    if (scrollPosition >= maxScroll - 100 && !_isPreloading && !_isLoadingMore) {
-      _preloadMoreVideos();
-    }
+    print('스크롤 위치: ${scrollPosition.toInt()}/${maxScroll.toInt()}'); // 디버그용
     
-    // 실제 로딩: 200px 지점에서 UI 업데이트
-    if (scrollPosition >= maxScroll - 200) {
+    // 간단한 트리거: 끝에서 200px 전에 도달하면 실행
+    if (scrollPosition >= maxScroll - 200 && 
+        _hasMoreVideos && 
+        !_isLoadingMore && 
+        !_isPreloading) {
+      
+      print('🚀 스크롤 트리거 발동!');
       _loadMoreVideos();
     }
   }
@@ -93,6 +98,9 @@ class _MainScreenState extends State<MainScreen> {
         _isLoading = false;
         _isRefreshing = false;
       });
+      
+      // 초기 로딩 완료 시 트리거 위치 초기화
+      _lastTriggerPosition = 0.0;
     } else {
       setState(() {
         _isLoading = false;
@@ -124,10 +132,11 @@ class _MainScreenState extends State<MainScreen> {
         setState(() {
           _videos.addAll(uniqueNewVideos);
         });
+        
+        print('프리로드 성공: ${uniqueNewVideos.length}개 영상 추가');
       } else {
-        setState(() {
-          _hasMoreVideos = false;
-        });
+        print('새로운 영상 없음 - 프리로드 건너뜀');
+        // 중복이 많아도 계속 시도할 수 있도록 _hasMoreVideos를 false로 설정하지 않음
       }
     } catch (e) {
       print('프리로드 중 오류: $e');
@@ -177,9 +186,12 @@ class _MainScreenState extends State<MainScreen> {
           _videos.addAll(uniqueNewVideos);
           _isLoadingMore = false;
         });
+        
+        print('로드 성공: ${uniqueNewVideos.length}개 영상 추가 (총 ${_videos.length}개)');
       } else {
+        print('새로운 영상 없음 - 재시도 대기');
+        // 새로운 영상이 없어도 _hasMoreVideos를 false로 설정하지 않고 계속 시도
         setState(() {
-          _hasMoreVideos = false;
           _isLoadingMore = false;
         });
       }
@@ -200,6 +212,9 @@ class _MainScreenState extends State<MainScreen> {
     
     // 중복 ID Set도 클리어
     _existingVideoIds.clear();
+    
+    // 트리거 위치 초기화
+    _lastTriggerPosition = 0.0;
     
     await _loadVideos();
   }
