@@ -4,12 +4,16 @@ import 'package:http/http.dart' as http;
 import '../models/channel.dart';
 import '../models/video.dart';
 import '../models/recommendation_weights.dart';
+import '../core/cache/cache_manager.dart';
+import '../core/errors/result.dart';
 
 class YouTubeService {
   final String apiKey;
   final String baseUrl = 'https://www.googleapis.com/youtube/v3';
+  final CacheManager _cache;
 
-  YouTubeService({required this.apiKey});
+  YouTubeService({required this.apiKey, CacheManager? cache}) 
+    : _cache = cache ?? MemoryCacheManager(defaultTtl: const Duration(minutes: 30));
 
   Future<List<Channel>> searchChannels(String query) async {
     // 테스트 모드일 때 더미 데이터 반환
@@ -98,6 +102,22 @@ class YouTubeService {
       return _getDummyVideos(uploadsPlaylistId);
     }
     
+    // 캐시 키 생성 (pageToken 포함)
+    final cacheKey = pageToken != null 
+      ? '${CacheKeys.channelVideos(uploadsPlaylistId)}_$pageToken'
+      : CacheKeys.channelVideos(uploadsPlaylistId);
+    
+    // 캐시 확인
+    final cachedResult = await _cache.get<List<Video>>(
+      cacheKey, 
+      (json) => (json['videos'] as List).map((item) => Video.fromJson(item)).toList()
+    );
+    
+    if (cachedResult.isSuccess && cachedResult.dataOrNull != null) {
+      print('캐시에서 영상 로드: $uploadsPlaylistId (${cachedResult.dataOrNull!.length}개)');
+      return cachedResult.dataOrNull!;
+    }
+    
     try {
       final params = {
         'part': 'snippet',
@@ -118,7 +138,17 @@ class YouTubeService {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final items = data['items'] as List? ?? [];
-        return items.map((item) => Video.fromPlaylistItem(item)).toList();
+        final videos = items.map((item) => Video.fromPlaylistItem(item)).toList();
+        
+        // 캐시에 저장
+        await _cache.set(
+          cacheKey, 
+          {'videos': videos.map((v) => v.toJson()).toList()}, 
+          () => {'videos': videos.map((v) => v.toJson()).toList()}
+        );
+        
+        print('API에서 영상 로드 및 캐시 저장: $uploadsPlaylistId (${videos.length}개)');
+        return videos;
       }
       return [];
     } catch (e) {
@@ -142,7 +172,7 @@ class YouTubeService {
     return allVideos.take(10).toList();
   }
 
-  // 가중치 기반 추천 영상 가져오기
+  // 가중치 기반 추천 영상 가져오기 - 병렬 처리 최적화
   Future<List<Video>> getWeightedRecommendedVideos(
     List<Channel> channels, 
     RecommendationWeights weights
@@ -154,12 +184,15 @@ class YouTubeService {
     // 카테고리별 채널 분류
     final Map<String, List<Channel>> categorizedChannels = _categorizeChannels(channels);
     
-    // 카테고리별 영상 개수 계산 - 더 많이 가져와서 10개 보장
-    final videoCounts = weights.getVideoCountsForTotal(30);
+    // 카테고리별 영상 개수 계산 - 15개로 최적화 (기존 30개에서 축소)
+    final videoCounts = weights.getVideoCountsForTotal(15);
     
     List<Video> recommendedVideos = [];
     
-    // 각 카테고리별로 영상 수집
+    // 병렬 처리를 위한 Future 리스트
+    List<Future<List<Video>>> categoryFutures = [];
+    
+    // 각 카테고리별로 병렬 영상 수집
     for (final entry in videoCounts.entries) {
       final category = entry.key;
       final targetCount = entry.value;
@@ -171,40 +204,19 @@ class YouTubeService {
       final categoryChannels = categorizedChannels[category] ?? [];
       if (categoryChannels.isEmpty && category != '랜덤') continue;
       
-      List<Video> categoryVideos = [];
-      
-      if (category == '랜덤') {
-        // 랜덤의 경우 모든 채널에서 무작위 선택
-        final allChannels = channels.toList()..shuffle();
-        for (Channel channel in allChannels) {
-          if (categoryVideos.length >= targetCount) break;
-          if (channel.uploadsPlaylistId.isNotEmpty) {
-            final videos = await getChannelVideos(channel.uploadsPlaylistId);
-            if (videos.isNotEmpty) {
-              videos.shuffle();
-              categoryVideos.addAll(videos.take(min(2, targetCount - categoryVideos.length)));
-            }
-          }
-        }
-      } else {
-        // 특정 카테고리 채널에서 영상 수집
-        for (Channel channel in categoryChannels) {
-          if (categoryVideos.length >= targetCount) break;
-          if (channel.uploadsPlaylistId.isNotEmpty) {
-            final videos = await getChannelVideos(channel.uploadsPlaylistId);
-            categoryVideos.addAll(videos);
-          }
-        }
-        
-        // 최신순 정렬 후 목표 개수만큼 선택
-        categoryVideos.sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
-        categoryVideos = categoryVideos.take(targetCount).toList();
-      }
-      
-      recommendedVideos.addAll(categoryVideos);
+      // 각 카테고리를 병렬로 처리
+      categoryFutures.add(_fetchCategoryVideos(category, categoryChannels, targetCount, channels));
     }
     
-    print('카테고리별 수집 완료: ${recommendedVideos.length}개');
+    // 모든 카테고리 병렬 실행 및 결과 수집
+    if (categoryFutures.isNotEmpty) {
+      final allCategoryResults = await Future.wait(categoryFutures);
+      for (final categoryVideos in allCategoryResults) {
+        recommendedVideos.addAll(categoryVideos);
+      }
+    }
+    
+    print('병렬 수집 완료: ${recommendedVideos.length}개');
     
     // 10개 미만이면 추가 영상 수집
     if (recommendedVideos.length < 10) {
@@ -222,6 +234,60 @@ class YouTubeService {
     print('최종 반환 영상 개수: ${finalVideos.length}');
     
     return finalVideos;
+  }
+
+  // 카테고리별 영상 수집 (병렬 처리용)
+  Future<List<Video>> _fetchCategoryVideos(
+    String category, 
+    List<Channel> categoryChannels, 
+    int targetCount,
+    List<Channel> allChannels
+  ) async {
+    List<Video> categoryVideos = [];
+    
+    if (category == '랜덤') {
+      // 랜덤의 경우 모든 채널에서 무작위 선택
+      final shuffledChannels = allChannels.toList()..shuffle();
+      final channelFutures = <Future<List<Video>>>[];
+      
+      // 각 채널에서 병렬로 영상 가져오기 (최대 5개 채널까지)
+      for (int i = 0; i < min(5, shuffledChannels.length); i++) {
+        final channel = shuffledChannels[i];
+        if (channel.uploadsPlaylistId.isNotEmpty) {
+          channelFutures.add(getChannelVideos(channel.uploadsPlaylistId));
+        }
+      }
+      
+      if (channelFutures.isNotEmpty) {
+        final allChannelVideos = await Future.wait(channelFutures);
+        for (final videos in allChannelVideos) {
+          if (categoryVideos.length >= targetCount) break;
+          if (videos.isNotEmpty) {
+            videos.shuffle();
+            categoryVideos.addAll(videos.take(min(2, targetCount - categoryVideos.length)));
+          }
+        }
+      }
+    } else {
+      // 특정 카테고리 채널에서 병렬 영상 수집
+      final channelFutures = categoryChannels
+        .where((channel) => channel.uploadsPlaylistId.isNotEmpty)
+        .map((channel) => getChannelVideos(channel.uploadsPlaylistId))
+        .toList();
+      
+      if (channelFutures.isNotEmpty) {
+        final allChannelVideos = await Future.wait(channelFutures);
+        for (final videos in allChannelVideos) {
+          categoryVideos.addAll(videos);
+        }
+        
+        // 최신순 정렬 후 목표 개수만큼 선택
+        categoryVideos.sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
+        categoryVideos = categoryVideos.take(targetCount).toList();
+      }
+    }
+    
+    return categoryVideos;
   }
 
   // 채널을 카테고리별로 분류

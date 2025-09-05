@@ -30,6 +30,11 @@ class _MainScreenState extends State<MainScreen> {
   bool _isRefreshing = false;
   bool _isLoadingMore = false;
   bool _hasMoreVideos = true;
+  bool _isPreloading = false;
+  
+  // 성능 최적화: 중복 ID를 인스턴스 변수로 유지
+  final Set<String> _existingVideoIds = <String>{};
+  
   final ScrollController _scrollController = ScrollController();
 
   @override
@@ -50,8 +55,16 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   void _scrollListener() {
-    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
-      // 스크롤이 끝에서 200px 이내에 도달하면 더 많은 비디오 로드
+    final scrollPosition = _scrollController.position.pixels;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    
+    // 프리로딩: 100px 지점에서 미리 로딩 시작
+    if (scrollPosition >= maxScroll - 100 && !_isPreloading && !_isLoadingMore) {
+      _preloadMoreVideos();
+    }
+    
+    // 실제 로딩: 200px 지점에서 UI 업데이트
+    if (scrollPosition >= maxScroll - 200) {
       _loadMoreVideos();
     }
   }
@@ -71,6 +84,10 @@ class _MainScreenState extends State<MainScreen> {
       
       print('로드된 비디오 개수: ${videos.length}'); // 디버깅용 로그
       
+      // 중복 ID Set 업데이트
+      _existingVideoIds.clear();
+      _existingVideoIds.addAll(videos.map((v) => v.id));
+      
       setState(() {
         _videos = videos;
         _isLoading = false;
@@ -84,25 +101,77 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
+  // 프리로딩: UI 블로킹 없이 백그라운드에서 미리 로딩
+  Future<void> _preloadMoreVideos() async {
+    if (_isPreloading || _isLoadingMore || !_hasMoreVideos || _channels.isEmpty) return;
+    
+    _isPreloading = true;
+    
+    try {
+      final weights = await StorageService.getRecommendationWeights();
+      final newVideos = await _youtubeService.getWeightedRecommendedVideos(_channels, weights);
+      
+      // 중복 제거 (최적화된 Set 사용)
+      final uniqueNewVideos = newVideos.where((v) => !_existingVideoIds.contains(v.id)).toList();
+      
+      if (uniqueNewVideos.isNotEmpty) {
+        uniqueNewVideos.shuffle();
+        
+        // ID Set 업데이트
+        _existingVideoIds.addAll(uniqueNewVideos.map((v) => v.id));
+        
+        // UI 즉시 업데이트 (optimistic update)
+        setState(() {
+          _videos.addAll(uniqueNewVideos);
+        });
+      } else {
+        setState(() {
+          _hasMoreVideos = false;
+        });
+      }
+    } catch (e) {
+      print('프리로드 중 오류: $e');
+    } finally {
+      _isPreloading = false;
+    }
+  }
+
   Future<void> _loadMoreVideos() async {
     if (_isLoadingMore || !_hasMoreVideos || _channels.isEmpty) return;
+    
+    // 프리로딩이 이미 완료되었다면 바로 리턴
+    if (_isPreloading) {
+      setState(() {
+        _isLoadingMore = true;
+      });
+      
+      // 프리로딩 완료 대기
+      while (_isPreloading) {
+        await Future.delayed(const Duration(milliseconds: 50));
+      }
+      
+      setState(() {
+        _isLoadingMore = false;
+      });
+      return;
+    }
     
     setState(() {
       _isLoadingMore = true;
     });
 
     try {
-      // 추천 가중치를 가져와서 가중치 기반 추천 사용 - 추가 10개 로드
       final weights = await StorageService.getRecommendationWeights();
       final newVideos = await _youtubeService.getWeightedRecommendedVideos(_channels, weights);
       
-      // 중복 제거를 위해 기존 비디오 ID 세트 생성
-      final existingVideoIds = _videos.map((v) => v.id).toSet();
-      final uniqueNewVideos = newVideos.where((v) => !existingVideoIds.contains(v.id)).toList();
+      // 최적화된 중복 제거
+      final uniqueNewVideos = newVideos.where((v) => !_existingVideoIds.contains(v.id)).toList();
       
       if (uniqueNewVideos.isNotEmpty) {
-        // 새로운 비디오들을 섞어서 다양성 확보
         uniqueNewVideos.shuffle();
+        
+        // ID Set 업데이트
+        _existingVideoIds.addAll(uniqueNewVideos.map((v) => v.id));
         
         setState(() {
           _videos.addAll(uniqueNewVideos);
@@ -128,6 +197,10 @@ class _MainScreenState extends State<MainScreen> {
       _videos.clear(); // 기존 비디오 목록 클리어
       _hasMoreVideos = true;
     });
+    
+    // 중복 ID Set도 클리어
+    _existingVideoIds.clear();
+    
     await _loadVideos();
   }
 

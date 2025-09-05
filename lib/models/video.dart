@@ -54,4 +54,15 @@ class Video {
       publishedAt: snippet['publishedAt'] ?? '',
     );
   }
+
+  // 캐시를 위한 JSON 직렬화
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'thumbnail': thumbnail,
+      'channelTitle': channelTitle,
+      'publishedAt': publishedAt,
+    };
+  }
 }
