@@ -5,7 +5,7 @@ import '../services/storage_service.dart';
 import 'pin_setup_screen.dart';
 
 class ApiKeySetupScreen extends StatefulWidget {
-  const ApiKeySetupScreen({Key? key}) : super(key: key);
+  const ApiKeySetupScreen({super.key});
 
   @override
   State<ApiKeySetupScreen> createState() => _ApiKeySetupScreenState();
@@ -46,10 +46,12 @@ class _ApiKeySetupScreenState extends State<ApiKeySetupScreen> {
 
       if (isValid) {
         await StorageService.saveApiKey(apiKey);
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => PinSetupScreen(apiKey: apiKey)),
-        );
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => PinSetupScreen(apiKey: apiKey)),
+          );
+        }
       } else {
         setState(() {
           _isValidating = false;

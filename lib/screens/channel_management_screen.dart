@@ -13,7 +13,7 @@ import 'recommendation_settings_screen.dart';
 class ChannelManagementScreen extends StatefulWidget {
   final String apiKey;
 
-  const ChannelManagementScreen({Key? key, required this.apiKey}) : super(key: key);
+  const ChannelManagementScreen({super.key, required this.apiKey});
 
   @override
   State<ChannelManagementScreen> createState() => _ChannelManagementScreenState();
@@ -31,23 +31,11 @@ class _ChannelManagementScreenState extends State<ChannelManagementScreen> {
   bool _hasSearched = false;
   bool _isTestMode = false;
 
-  // 인기 한국 키즈 채널들
+  // 인기 한국 키즈 채널들 (초기 발견용)
   final List<String> _popularChannelNames = [
     '뽀로로',
-    '핑크퐁',
-    '타요',
-    '코코몽',
-    '베이비버스',
-    '티디키즈',
-    '똑똑키즈',
-    '키클',
-    '키즈폰트',
-    '슈퍼조조',
-    '바다탐험대 옥토넛',
-    '구구단 송',
-    '토마스와 친구들',
-    '페파피그',
-    'CoComelon',
+    '핑크퐁', 
+    '타요'
   ];
 
   @override
@@ -55,19 +43,34 @@ class _ChannelManagementScreenState extends State<ChannelManagementScreen> {
     super.initState();
     _youtubeService = getService<IYouTubeService>();
     _isTestMode = widget.apiKey == 'TEST_API_KEY';
-    _loadSubscribedChannels();
-    _loadPopularChannels();
+    
+    // 비동기 작업을 postFrameCallback으로 지연
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadSubscribedChannels();
+      _loadPopularChannels();
+    });
   }
 
   Future<void> _loadSubscribedChannels() async {
-    // Use global ChannelProvider instead of direct StorageService
-    final channelProvider = Provider.of<ChannelProvider>(context, listen: false);
-    await channelProvider.loadSubscribedChannels();
-    
-    setState(() {
-      _subscribedChannels = channelProvider.subscribedChannels;
-      _isLoading = false;
-    });
+    try {
+      // Use global ChannelProvider instead of direct StorageService
+      final channelProvider = Provider.of<ChannelProvider>(context, listen: false);
+      await channelProvider.loadSubscribedChannels();
+      
+      if (mounted) {
+        setState(() {
+          _subscribedChannels = channelProvider.subscribedChannels;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading subscribed channels: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   Future<void> _loadPopularChannels() async {
@@ -105,37 +108,6 @@ class _ChannelManagementScreenState extends State<ChannelManagementScreen> {
     });
   }
 
-  Future<void> _searchChannels() async {
-    print('🚀 [Android Debug] _searchChannels() method called!');
-    
-    final query = _searchController.text.trim();
-    print('🚀 [Android Debug] Search query: "$query"');
-    
-    if (query.isEmpty) {
-      print('🚀 [Android Debug] Empty query, clearing results');
-      setState(() {
-        _hasSearched = false;
-        _searchResults = [];
-      });
-      return;
-    }
-
-    print('🚀 [Android Debug] Starting search with query: "$query"');
-    setState(() {
-      _isSearching = true;
-      _hasSearched = true;
-    });
-
-    print('🚀 [Android Debug] Calling _youtubeService.searchChannels()');
-    final results = await _youtubeService.searchChannels(query);
-    print('🚀 [Android Debug] Search completed, got ${results.length} results');
-
-    setState(() {
-      _searchResults = results;
-      _isSearching = false;
-    });
-    print('🚀 [Android Debug] UI updated with search results');
-  }
 
   Future<void> _addChannel(Channel channel) async {
     // Use global ChannelProvider instead of direct StorageService
@@ -199,6 +171,61 @@ class _ChannelManagementScreenState extends State<ChannelManagementScreen> {
         );
       },
     );
+  }
+
+  Future<void> _searchChannels() async {
+    final query = _searchController.text.trim();
+    if (query.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('검색어를 입력해주세요')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSearching = true;
+      _hasSearched = true;
+      _searchResults = [];
+    });
+
+    try {
+      final searchResults = await _youtubeService.searchChannels(query);
+      
+      // 구독자 수 1만명 이상인 채널만 필터링
+      final filteredResults = searchResults.where((channel) {
+        final subscriberCount = _parseSubscriberCount(channel.subscriberCount);
+        return subscriberCount >= 10000;
+      }).toList();
+
+      if (mounted) {
+        setState(() {
+          _searchResults = filteredResults;
+          _isSearching = false;
+        });
+      }
+
+      if (mounted) {
+        if (filteredResults.isEmpty && searchResults.isNotEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('구독자 1만명 이상의 채널이 없습니다')),
+          );
+        } else if (searchResults.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('검색 결과가 없습니다')),
+          );
+        }
+      }
+    } catch (e) {
+      print('Error searching channels: $e');
+      if (mounted) {
+        setState(() {
+          _isSearching = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('검색 중 오류가 발생했습니다: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _completeSetup() async {

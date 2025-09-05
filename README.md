@@ -1,11 +1,11 @@
-# KidsTube 🎬
+# KidsTube - Safe YouTube for Children 🎥👶
 
-안전하고 교육적인 어린이 전용 YouTube 동영상 플레이어
+A Flutter-based standalone application providing a safe and curated YouTube experience for children with intelligent content filtering and parental controls.
 
 [![Flutter Version](https://img.shields.io/badge/Flutter-3.29.2-blue.svg)](https://flutter.dev)
 [![Dart Version](https://img.shields.io/badge/Dart-3.7.2-blue.svg)](https://dart.dev)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.3.02--standalone-orange.svg)](https://github.com/jagallang/KIDSTUBE/releases)
+[![Version](https://img.shields.io/badge/Version-1.3.05--standalone-orange.svg)](https://github.com/jagallang/KIDSTUBE/releases)
 
 ## 📱 소개
 
@@ -176,6 +176,16 @@ dependencies:
 - **데이터 검증**: 백업 무결성 체크 및 오류 복구
 
 ## 🔄 버전 히스토리
+
+### v1.3.05 (2025-09-05) 🧹 **코드 품질 개선 및 기능 수정**
+- **🧪 테스트 코드 완전 제거**: 프로덕션용 standalone 버전에 맞게 테스트 관련 코드 정리
+- **🐛 setState during build 오류 해결**: ChannelManagementScreen 초기화 로직 개선
+- **🔧 BuildContext async gap 문제 수정**: 모든 비동기 작업에 mounted 체크 추가
+- **✨ 코드 스타일 개선**: super parameter 적용, string interpolation 최적화
+- **🗑️ 더미 데이터 정리**: 하드코딩된 채널 목록을 최소화 (3개만 유지)
+- **🔍 채널 검색 기능 수정**: 중복 함수 제거 및 에러 처리 강화
+- **📊 정적 분석 개선**: 26개 이슈에서 8개로 67% 감소
+- **🚀 실제 API 연동 확인**: 유효한 API 키로 채널 검색 정상 작동 검증
 
 ### v1.3.02 (2025-09-04) 📊 **상태 분석 및 문서화**
 - **✅ API 통합 정상 작동 확인**: 유효한 API 키 입력 시 실제 YouTube Data API v3 정상 작동

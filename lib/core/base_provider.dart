@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 
 /// Base provider class implementing common state management patterns
 /// Following Clean Architecture principles with proper error handling and loading states
@@ -82,7 +82,7 @@ abstract class BaseProvider extends ChangeNotifier {
       shouldNotify = true;
     }
 
-    if (shouldNotify) {
+    if (shouldNotify && !_disposed) {
       notifyListeners();
     }
   }

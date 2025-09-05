@@ -6,7 +6,7 @@ import '../core/interfaces/i_storage_service.dart';
 import '../core/debug_logger.dart';
 
 class RecommendationSettingsScreen extends StatefulWidget {
-  const RecommendationSettingsScreen({Key? key}) : super(key: key);
+  const RecommendationSettingsScreen({super.key});
 
   @override
   State<RecommendationSettingsScreen> createState() => _RecommendationSettingsScreenState();
@@ -140,7 +140,7 @@ class _RecommendationSettingsScreenState extends State<RecommendationSettingsScr
                         ),
                       ),
                       Text(
-                        '20개 영상 중 약 ${videoCount}개 (${ratio.toStringAsFixed(1)}%)',
+                        '20개 영상 중 약 $videoCount개 (${ratio.toStringAsFixed(1)}%)',
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey.shade600,

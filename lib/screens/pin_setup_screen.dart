@@ -5,7 +5,7 @@ import 'channel_management_screen.dart';
 class PinSetupScreen extends StatefulWidget {
   final String apiKey;
 
-  const PinSetupScreen({Key? key, required this.apiKey}) : super(key: key);
+  const PinSetupScreen({super.key, required this.apiKey});
 
   @override
   State<PinSetupScreen> createState() => _PinSetupScreenState();

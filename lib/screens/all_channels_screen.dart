@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/channel.dart';
-import '../services/youtube_service.dart';
 import '../services/storage_service.dart';
 
 class AllChannelsScreen extends StatefulWidget {
   final String apiKey;
 
-  const AllChannelsScreen({Key? key, required this.apiKey}) : super(key: key);
+  const AllChannelsScreen({super.key, required this.apiKey});
 
   @override
   State<AllChannelsScreen> createState() => _AllChannelsScreenState();
@@ -73,14 +72,6 @@ class _AllChannelsScreenState extends State<AllChannelsScreen> {
     return keywords.any((keyword) => channelTitle.contains(keyword.toLowerCase()));
   }
 
-  Future<void> _addChannel(Channel channel) async {
-    await StorageService.addChannel(channel);
-    await _loadSubscribedChannels();
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${channel.title} 채널이 추가되었습니다')),
-    );
-  }
 
   Future<void> _removeChannel(String channelId) async {
     await StorageService.removeChannel(channelId);
@@ -118,31 +109,6 @@ class _AllChannelsScreenState extends State<AllChannelsScreen> {
     );
   }
 
-  // 구독자 수 문자열을 숫자로 변환
-  int _parseSubscriberCount(String subscriberCountStr) {
-    if (subscriberCountStr.isEmpty || subscriberCountStr == '0') {
-      return 0;
-    }
-
-    String cleanStr = subscriberCountStr.toLowerCase().replaceAll(',', '');
-    double multiplier = 1;
-    
-    if (cleanStr.contains('k')) {
-      multiplier = 1000;
-      cleanStr = cleanStr.replaceAll('k', '');
-    } else if (cleanStr.contains('m')) {
-      multiplier = 1000000;
-      cleanStr = cleanStr.replaceAll('m', '');
-    }
-
-    try {
-      double value = double.parse(cleanStr);
-      return (value * multiplier).round();
-    } catch (e) {
-      print('Error parsing subscriber count: $subscriberCountStr');
-      return 0;
-    }
-  }
 
   @override
   Widget build(BuildContext context) {

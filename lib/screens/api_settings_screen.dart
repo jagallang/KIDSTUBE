@@ -6,7 +6,7 @@ import '../core/service_locator.dart';
 import 'background_refresh_settings_screen.dart';
 
 class ApiSettingsScreen extends StatefulWidget {
-  const ApiSettingsScreen({Key? key}) : super(key: key);
+  const ApiSettingsScreen({super.key});
 
   @override
   State<ApiSettingsScreen> createState() => _ApiSettingsScreenState();
@@ -73,6 +73,15 @@ class _ApiSettingsScreenState extends State<ApiSettingsScreen> {
         await _loadSavedApiKey();
         _apiKeyController.clear();
         _showSnackBar('API 키가 저장되고 서비스가 업데이트되었습니다', isError: false);
+        
+        // 메인 화면으로 이동
+        if (mounted) {
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            '/splash',
+            (route) => false,
+          );
+        }
       } else {
         _showSnackBar(
           'API 키 검증 실패:\n'

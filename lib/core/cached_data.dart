@@ -1,4 +1,3 @@
-import 'dart:convert';
 
 /// Generic cached data wrapper with expiration and metadata
 class CachedData<T> {
@@ -112,7 +111,6 @@ class CacheStorage {
     final jsonMap = cachedData.toJson();
     jsonMap['data'] = dataSerializer(cachedData.data);
     
-    final jsonString = json.encode(jsonMap);
     // Implementation will be injected via dependency
   }
 

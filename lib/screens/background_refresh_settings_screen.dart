@@ -48,14 +48,18 @@ class _BackgroundRefreshSettingsScreenState extends State<BackgroundRefreshSetti
 
     if (value) {
       _backgroundRefreshManager.startBackgroundRefresh();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('백그라운드 새로고침이 활성화되었습니다')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('백그라운드 새로고침이 활성화되었습니다')),
+        );
+      }
     } else {
       _backgroundRefreshManager.stopBackgroundRefresh();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('백그라운드 새로고침이 비활성화되었습니다')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('백그라운드 새로고침이 비활성화되었습니다')),
+        );
+      }
     }
   }
 

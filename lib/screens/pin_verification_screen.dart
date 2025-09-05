@@ -6,7 +6,7 @@ class PinVerificationScreen extends StatefulWidget {
   final VoidCallback onSuccess;
   final String? apiKey;
 
-  const PinVerificationScreen({Key? key, required this.onSuccess, this.apiKey}) : super(key: key);
+  const PinVerificationScreen({super.key, required this.onSuccess, this.apiKey});
 
   @override
   State<PinVerificationScreen> createState() => _PinVerificationScreenState();

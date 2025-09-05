@@ -172,7 +172,7 @@ class CacheAnalytics {
   static Future<void> _recordUserBehavior(String userId, String cacheKey) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final behaviorKey = '${_userBehaviorPrefix}$userId';
+      final behaviorKey = '${_userBehaviorPrefix}userId';
       
       // Get existing behavior data
       final behaviorJson = prefs.getString(behaviorKey);
@@ -204,7 +204,7 @@ class CacheAnalytics {
   static Future<Map<String, int>> getUserPreferences(String userId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final behaviorKey = '${_userBehaviorPrefix}$userId';
+      final behaviorKey = '${_userBehaviorPrefix}userId';
       final behaviorJson = prefs.getString(behaviorKey);
       
       if (behaviorJson != null) {

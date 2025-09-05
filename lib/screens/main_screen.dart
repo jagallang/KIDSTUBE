@@ -60,6 +60,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     _videoProvider = Provider.of<VideoProvider>(context, listen: false);
     _recommendationProvider = Provider.of<RecommendationProvider>(context, listen: false);
     
+    // Connect VideoProvider to ChannelProvider for reactive updates
+    _videoProvider.setChannelProvider(_channelProvider);
+    
     // Get background refresh manager
     _backgroundRefreshManager = getService<BackgroundRefreshManager>();
     
@@ -624,9 +627,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _backgroundRefreshManager.dispose();
-    _videoProvider.dispose();
-    _channelProvider.dispose();
-    _recommendationProvider.dispose();
+    // Don't dispose providers - they are managed by MultiProvider
     super.dispose();
   }
 }

@@ -52,6 +52,9 @@ class KidsTubeApp extends StatelessWidget {
         ),
         home: const SplashScreen(),
         debugShowCheckedModeBanner: false,
+        routes: {
+          '/splash': (context) => const SplashScreen(),
+        },
       ),
     );
   }

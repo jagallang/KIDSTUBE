@@ -213,7 +213,7 @@ class CloudBackupService {
         daysSinceBackup: daysSinceBackup,
         needsBackup: daysSinceBackup > 7, // Suggest backup if older than 7 days
         message: backupExists 
-            ? 'Backup available (${daysSinceBackup} days old)'
+            ? 'Backup available ($daysSinceBackup days old)'
             : 'Backup not found in cloud',
       );
     } catch (e) {

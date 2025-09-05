@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'main_screen.dart';
 import '../services/youtube_service.dart';
 import '../services/storage_service.dart';
+import 'api_settings_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -26,42 +27,40 @@ class _SplashScreenState extends State<SplashScreen> {
     
     // 1. 저장된 API 키 우선 확인
     String? savedApiKey = await StorageService.getApiKey();
-    String candidateApiKey;
+    String finalApiKey;
     
     if (savedApiKey != null && savedApiKey.isNotEmpty) {
       print('📁 저장된 API 키 발견: ${savedApiKey.substring(0, 8)}...');
-      candidateApiKey = savedApiKey;
-    } else {
-      print('⚠️ 저장된 API 키가 없습니다. 기본 키로 시도합니다.');
-      candidateApiKey = 'AIzaSyBZ6Hud9e-_fqIV2b4ufmn5qy2nqaRZiRs'; // 기본값 (유효하지 않음)
-    }
-    
-    String finalApiKey = candidateApiKey;
-    
-    // 2. API 키 유효성 검증
-    print('🔍 API 키 유효성 검사 중...');
-    
-    try {
-      final youtubeService = YouTubeService(apiKey: candidateApiKey);
-      final isValidApiKey = await youtubeService.validateApiKey();
+      finalApiKey = savedApiKey;
       
-      if (!isValidApiKey) {
-        if (savedApiKey != null) {
-          print('❌ 저장된 API 키가 유효하지 않습니다.');
+      // 2. API 키 유효성 검증 (로그만 출력, 실패해도 키는 그대로 사용)
+      print('🔍 API 키 유효성 검사 중...');
+      try {
+        final youtubeService = YouTubeService(apiKey: savedApiKey);
+        final isValidApiKey = await youtubeService.validateApiKey();
+        
+        if (isValidApiKey) {
+          print('✅ API 키 검증 성공!');
         } else {
-          print('❌ 기본 API 키가 유효하지 않습니다.');
+          print('⚠️ API 키 검증 실패 - API 할당량 초과나 네트워크 문제일 수 있습니다.');
+          print('💡 저장된 API 키를 그대로 사용합니다.');
         }
-        print('💡 설정 > API 설정에서 유효한 API 키를 입력해주세요.');
-        print('🔧 테스트 모드로 전환합니다.');
-        finalApiKey = 'TEST_API_KEY';
-      } else {
-        print('✅ API 키 검증 성공!');
-        finalApiKey = candidateApiKey;
+      } catch (e) {
+        print('⚠️ API 키 검증 중 오류: $e');
+        print('💡 저장된 API 키를 그대로 사용합니다.');
       }
-    } catch (e) {
-      print('❌ API 키 검증 중 오류 발생: $e');
-      print('💡 네트워크 오류로 인해 테스트 모드로 전환합니다.');
-      finalApiKey = 'TEST_API_KEY';
+    } else {
+      print('⚠️ 저장된 API 키가 없습니다.');
+      print('💡 설정 > API 설정에서 유효한 API 키를 입력해주세요.');
+      
+      // API 키가 없으면 API 설정 화면으로 이동
+      if (!mounted) return;
+      
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const ApiSettingsScreen()),
+      );
+      return;
     }
     
     if (!mounted) return;
