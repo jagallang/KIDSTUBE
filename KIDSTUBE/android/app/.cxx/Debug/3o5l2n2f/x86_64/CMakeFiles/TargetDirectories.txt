@@ -1,0 +1,2 @@
+/Users/isan/Desktop/coding/KIDSTUBE/kidstube_standalone/KIDSTUBE/android/app/.cxx/Debug/3o5l2n2f/x86_64/CMakeFiles/edit_cache.dir
+/Users/isan/Desktop/coding/KIDSTUBE/kidstube_standalone/KIDSTUBE/android/app/.cxx/Debug/3o5l2n2f/x86_64/CMakeFiles/rebuild_cache.dir
