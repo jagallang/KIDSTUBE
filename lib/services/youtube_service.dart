@@ -123,7 +123,7 @@ class YouTubeService {
         'part': 'snippet',
         'playlistId': uploadsPlaylistId,
         'key': apiKey,
-        'maxResults': '20',
+        'maxResults': '50',
       };
 
       if (pageToken != null) {
@@ -184,8 +184,8 @@ class YouTubeService {
     // 카테고리별 채널 분류
     final Map<String, List<Channel>> categorizedChannels = _categorizeChannels(channels);
     
-    // 카테고리별 영상 개수 계산 - 30개로 증대 (더 많은 영상 추천)
-    final videoCounts = weights.getVideoCountsForTotal(30);
+    // 카테고리별 영상 개수 계산 - 100개로 대폭 확장 (무제한에 가까운 추천)
+    final videoCounts = weights.getVideoCountsForTotal(100);
     
     List<Video> recommendedVideos = [];
     
