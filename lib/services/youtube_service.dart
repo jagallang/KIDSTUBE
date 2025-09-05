@@ -139,7 +139,7 @@ class YouTubeService {
     
     allVideos.sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
     
-    return allVideos.take(20).toList();
+    return allVideos.take(10).toList();
   }
 
   // 가중치 기반 추천 영상 가져오기
@@ -154,8 +154,8 @@ class YouTubeService {
     // 카테고리별 채널 분류
     final Map<String, List<Channel>> categorizedChannels = _categorizeChannels(channels);
     
-    // 카테고리별 영상 개수 계산
-    final videoCounts = weights.getVideoCountsForTotal(20);
+    // 카테고리별 영상 개수 계산 - 더 많이 가져와서 10개 보장
+    final videoCounts = weights.getVideoCountsForTotal(30);
     
     List<Video> recommendedVideos = [];
     
@@ -163,6 +163,8 @@ class YouTubeService {
     for (final entry in videoCounts.entries) {
       final category = entry.key;
       final targetCount = entry.value;
+      
+      print('카테고리 $category: 목표 ${targetCount}개');
       
       if (targetCount <= 0) continue;
       
@@ -202,10 +204,24 @@ class YouTubeService {
       recommendedVideos.addAll(categoryVideos);
     }
     
+    print('카테고리별 수집 완료: ${recommendedVideos.length}개');
+    
+    // 10개 미만이면 추가 영상 수집
+    if (recommendedVideos.length < 10) {
+      print('${10 - recommendedVideos.length}개 추가 영상 필요');
+      final existingIds = recommendedVideos.map((v) => v.id).toSet();
+      final additionalVideos = await getCombinedVideos(channels);
+      final uniqueAdditional = additionalVideos.where((v) => !existingIds.contains(v.id)).toList();
+      recommendedVideos.addAll(uniqueAdditional.take(10 - recommendedVideos.length));
+    }
+    
     // 전체 결과를 섞어서 카테고리별로 분산되도록 함
     recommendedVideos.shuffle();
     
-    return recommendedVideos.take(20).toList();
+    final finalVideos = recommendedVideos.take(10).toList();
+    print('최종 반환 영상 개수: ${finalVideos.length}');
+    
+    return finalVideos;
   }
 
   // 채널을 카테고리별로 분류
