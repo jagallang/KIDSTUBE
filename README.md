@@ -5,7 +5,7 @@
 [![Flutter Version](https://img.shields.io/badge/Flutter-3.29.2-blue.svg)](https://flutter.dev)
 [![Dart Version](https://img.shields.io/badge/Dart-3.7.2-blue.svg)](https://dart.dev)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-2.0.1-orange.svg)](https://github.com/jagallang/KIDSTUBE/releases)
+[![Version](https://img.shields.io/badge/Version-1.4.01-orange.svg)](https://github.com/jagallang/KIDSTUBE/releases)
 
 ## 📱 소개
 
@@ -23,20 +23,25 @@ KidsTube는 부모가 안심하고 자녀에게 보여줄 수 있는 교육적�
 - **특징**: Rails 백엔드 서버와 연동하는 서비스형 앱
 - **대상**: 서버 기반 서비스로 다수 사용자 지원
 
-## 🚀 최신 릴리즈 - v2.0.1 (2025-09-03)
+## 🚀 최신 릴리즈 - v1.4.01 (2025-09-06)
 
 ### 새로운 기능
-- ✅ **Rails 백엔드 완전 통합**: API 키 관리를 서버로 이전
-- ✅ **PIN 인증 개선**: 기본 PIN "1234" 자동 설정 및 웹 호환성
-- ✅ **CORS 지원**: Flutter 웹과 Rails API 간 원활한 통신
-- ✅ **더미 서비스 패턴**: 백엔드 전용 아키텍처를 위한 null 안전성
-- ✅ **디버그 로깅**: PIN 인증 및 API 호출 상세 로깅
+- ✅ **백엔드 채널 API 통합**: Rails 서버에서 인기 키즈 채널 데이터 제공
+- ✅ **백엔드 비디오 API 구현**: 교육 영상 추천 시스템 백엔드 연동
+- ✅ **동적 콘텐츠 로딩**: 채널 저장 시 자동으로 백엔드에서 추천 영상 가져오기
+- ✅ **Provider 연결 강화**: ChannelProvider와 VideoProvider 간 실시간 동기화
+- ✅ **썸네일 URL 최적화**: 실제 YouTube 채널 썸네일로 교체
 
-### 버그 수정
-- 🐛 MainScreen API 키 의존성 제거
-- 🐛 Provider 초기화 null 오류 해결
-- 🐛 웹 플랫폼 SharedPreferences 호환성
-- 🐛 PIN 인증 실패 문제 완전 해결
+### 기술적 개선
+- 🔧 Video 모델에 `fromBackendApi()` 팩토리 메서드 추가
+- 🔧 더미 YouTube 서비스를 백엔드 API 호출로 전환
+- 🔧 MainScreen에서 Provider 간 자동 연결 설정
+- 🔧 HTTP 통신을 통한 완전한 백엔드 통합
+
+### 이전 릴리즈 - v2.0.1 (2025-09-03)
+- Rails 백엔드 완전 통합: API 키 관리를 서버로 이전
+- PIN 인증 개선: 기본 PIN "1234" 자동 설정 및 웹 호환성
+- CORS 지원: Flutter 웹과 Rails API 간 원활한 통신
 
 ### ✨ 주요 기능
 
