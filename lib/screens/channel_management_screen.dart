@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../models/channel.dart';
 import '../services/youtube_service.dart';
 import '../services/storage_service.dart';
@@ -65,35 +67,139 @@ class _ChannelManagementScreenState extends State<ChannelManagementScreen> {
     setState(() {
       _isLoadingPopular = true;
     });
-
-    List<Channel> channels = [];
     
-    // 각 인기 채널명으로 검색해서 채널 정보 가져오기
-    for (String channelName in _popularChannelNames.take(10)) {
-      try {
-        final searchResults = await _youtubeService.searchChannels(channelName);
-        if (searchResults.isNotEmpty) {
-          // 구독자 수 1만명 이상인 채널만 추가
-          final filteredChannels = searchResults.where((channel) {
-            final subscriberCount = _parseSubscriberCount(channel.subscriberCount);
-            return subscriberCount >= 10000;
-          }).toList();
-          
-          if (filteredChannels.isNotEmpty) {
-            channels.add(filteredChannels.first);
-          }
+    try {
+      // 백엔드 API에서 인기 채널 목록 가져오기
+      final response = await http.get(
+        Uri.parse('http://localhost:3000/api/v1/channels/popular'),
+        headers: {'Content-Type': 'application/json'},
+      );
+      
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        final channelsData = jsonData['data']['channels'] as List;
+        
+        List<Channel> channels = channelsData.map((channelJson) => Channel(
+          id: channelJson['id'],
+          title: channelJson['title'],
+          thumbnail: channelJson['thumbnail'],
+          subscriberCount: channelJson['subscriberCount'],
+          uploadsPlaylistId: channelJson['uploadsPlaylistId'],
+          category: channelJson['category'],
+        )).toList();
+        
+        if (mounted) {
+          setState(() {
+            _popularChannels = channels;
+            _isLoadingPopular = false;
+          });
         }
-        // API 호출 제한을 피하기 위한 지연
-        await Future.delayed(const Duration(milliseconds: 200));
-      } catch (e) {
-        print('Error loading channel $channelName: $e');
+      } else {
+        // API 호출 실패 시 하드코딩된 데이터 사용
+        List<Channel> channels = _getHardcodedPopularChannels();
+        if (mounted) {
+          setState(() {
+            _popularChannels = channels;
+            _isLoadingPopular = false;
+          });
+        }
+      }
+    } catch (e) {
+      print('인기 채널 로드 실패: $e');
+      // 에러 발생 시 하드코딩된 데이터 사용
+      List<Channel> channels = _getHardcodedPopularChannels();
+      if (mounted) {
+        setState(() {
+          _popularChannels = channels;
+          _isLoadingPopular = false;
+        });
       }
     }
+  }
 
-    setState(() {
-      _popularChannels = channels;
-      _isLoadingPopular = false;
-    });
+  List<Channel> _getHardcodedPopularChannels() {
+    return [
+      Channel(
+        id: 'UC38QX4N5yL8IcQNROGq2USg',
+        title: '뽀로로(PORORO)',
+        subscriberCount: '320만',
+        thumbnail: 'https://yt3.ggpht.com/ytc/AIdro_lHFE1_r7R6x9R1-RsI_QQ8yV7g2kUJKnR8GZk5=s800-c-k-c0x00ffffff-no-rj',
+        uploadsPlaylistId: 'UU38QX4N5yL8IcQNROGq2USg',
+        category: '키즈',
+      ),
+      Channel(
+        id: 'UCcdwLMPsaU2ezNSJU1nFoBQ',
+        title: '핑크퐁 (Pinkfong)',
+        subscriberCount: '6730만',
+        thumbnail: 'https://yt3.ggpht.com/ytc/AIdro_k1FVW0J2JGmN4vU6Q0w2w1yRRCGnQQ0b8J9rZk=s800-c-k-c0x00ffffff-no-rj',
+        uploadsPlaylistId: 'UUcdwLMPsaU2ezNSJU1nFoBQ',
+        category: '영어',
+      ),
+      Channel(
+        id: 'UCdGBwMCLMOdLgWF2EsL-Qsg',
+        title: '타요 Tayo the Little Bus',
+        subscriberCount: '1540만',
+        thumbnail: 'https://yt3.ggpht.com/ytc/AIdro_n8JiVXFWZZVVA8yJz9oKJQ8QN7HJJmJ8JyH7rQ=s800-c-k-c0x00ffffff-no-rj',
+        uploadsPlaylistId: 'UUdGBwMCLMOdLgWF2EsL-Qsg',
+        category: '키즈',
+      ),
+      Channel(
+        id: 'UCjBG4QpVVpWfJ4JdhqOaEIg',
+        title: 'CoComelon - Nursery Rhymes',
+        subscriberCount: '1억 7600만',
+        thumbnail: 'https://yt3.ggpht.com/ytc/AIdro_nJ8QgmTQCMJQxQ9wXQe4gZfKGXX5tA7qNmCCTU=s800-c-k-c0x00ffffff-no-rj',
+        uploadsPlaylistId: 'UUjBG4QpVVpWfJ4JdhqOaEIg',
+        category: '영어',
+      ),
+      Channel(
+        id: 'UCNBkHwSvVGHPeaBnpKsRBVg',
+        title: '베이비버스 BabyBus',
+        subscriberCount: '2050만',
+        thumbnail: 'https://yt3.ggpht.com/ytc/AIdro_mXFWZZVVA8yJz9oKJQ8QN7HJJmJ8JyH7rQ=s800-c-k-c0x00ffffff-no-rj',
+        uploadsPlaylistId: 'UUNBkHwSvVGHPeaBnpKsRBVg',
+        category: '키즈',
+      ),
+      Channel(
+        id: 'UC5U2EgwsQjgmJv2bDO-POwg',
+        title: '코코몽 Cocomong',
+        subscriberCount: '187만',
+        thumbnail: 'https://yt3.ggpht.com/ytc/AIdro_lFGW0J2JGmN4vU6Q0w2w1yRRCGnQQ0b8J9rZk=s800-c-k-c0x00ffffff-no-rj',
+        uploadsPlaylistId: 'UU5U2EgwsQjgmJv2bDO-POwg',
+        category: '키즈',
+      ),
+      Channel(
+        id: 'UC4OyFhvbB7TWdOZJ3VlU3kQ',
+        title: '키즈 스튜디오',
+        subscriberCount: '98만',
+        thumbnail: 'https://yt3.ggpht.com/ytc/AIdro_n8JiVXFWZZVVA8yJz9oKJQ8QN7HJJmJ8JyH7rQ=s800-c-k-c0x00ffffff-no-rj',
+        uploadsPlaylistId: 'UU4OyFhvbB7TWdOZJ3VlU3kQ',
+        category: '미술',
+      ),
+      Channel(
+        id: 'UCZmhWl_5P4bH2bYT-VIRCzw',
+        title: '똑똑키즈',
+        subscriberCount: '76만',
+        thumbnail: 'https://yt3.ggpht.com/ytc/AIdro_k1FVW0J2JGmN4vU6Q0w2w1yRRCGnQQ0b8J9rZk=s800-c-k-c0x00ffffff-no-rj',
+        uploadsPlaylistId: 'UUZmhWl_5P4bH2bYT-VIRCzw',
+        category: '과학',
+      ),
+      Channel(
+        id: 'UCKl1xn7EEO4U4zt5KQ6PfSw',
+        title: '페파피그 Peppa Pig',
+        subscriberCount: '3210만',
+        thumbnail: 'https://yt3.ggpht.com/ytc/AIdro_lHFE1_r7R6x9R1-RsI_QQ8yV7g2kUJKnR8GZk5=s800-c-k-c0x00ffffff-no-rj',
+        uploadsPlaylistId: 'UUKl1xn7EEO4U4zt5KQ6PfSw',
+        category: '영어',
+      ),
+      Channel(
+        id: 'UCjFHPMFvGjksuLKQOBNbJhw',
+        title: '바다탐험대 옥토넛',
+        subscriberCount: '145만',
+        thumbnail: 'https://yt3.ggpht.com/ytc/AIdro_mXFWZZVVA8yJz9oKJQ8QN7HJJmJ8JyH7rQ=s800-c-k-c0x00ffffff-no-rj',
+        uploadsPlaylistId: 'UUjFHPMFvGjksuLKQOBNbJhw',
+        category: '과학',
+      ),
+    ];
   }
 
   Future<void> _searchChannels() async {

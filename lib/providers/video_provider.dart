@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import '../models/video.dart';
 import '../models/channel.dart';
 import '../models/recommendation_weights.dart';
@@ -183,7 +185,28 @@ class _DummyYouTubeService implements IYouTubeService {
     List<Channel> channels, 
     RecommendationWeights weights,
   ) async {
-    return []; // Return empty list - videos will come from backend API
+    try {
+      // v2.0.1: 백엔드 API에서 비디오 가져오기
+      final response = await http.get(
+        Uri.parse('http://localhost:3000/api/v1/videos'),
+        headers: {'Content-Type': 'application/json'},
+      );
+      
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        final videosData = jsonData['data']['videos'] as List;
+        
+        List<Video> videos = videosData.map((videoJson) => Video.fromBackendApi(videoJson)).toList();
+        
+        return videos;
+      } else {
+        print('백엔드 API 호출 실패: ${response.statusCode}');
+        return [];
+      }
+    } catch (e) {
+      print('백엔드 API 호출 중 에러: $e');
+      return [];
+    }
   }
 
   @override

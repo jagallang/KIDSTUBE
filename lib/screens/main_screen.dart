@@ -70,6 +70,16 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         storageService: serviceLocator<IStorageService>(),
       );
       
+      // channelProvider와 videoProvider 연결
+      _videoProvider.setChannelProvider(_channelProvider);
+      
+      // 채널이 있으면 비디오 로드 시작
+      _channelProvider.loadSubscribedChannels().then((_) {
+        if (_channelProvider.hasSubscribedChannels) {
+          _videoProvider.loadVideos();
+        }
+      });
+      
     } catch (e) {
       print('Provider initialization error: $e');
       // Fallback initialization to prevent crashes
@@ -84,6 +94,16 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         youtubeService: null,
         storageService: serviceLocator<IStorageService>(),
       );
+      
+      // channelProvider와 videoProvider 연결 (fallback에서도)
+      _videoProvider.setChannelProvider(_channelProvider);
+      
+      // 채널이 있으면 비디오 로드 시작
+      _channelProvider.loadSubscribedChannels().then((_) {
+        if (_channelProvider.hasSubscribedChannels) {
+          _videoProvider.loadVideos();
+        }
+      });
     }
   }
 

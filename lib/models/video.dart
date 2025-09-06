@@ -66,6 +66,17 @@ class Video {
     };
   }
 
+  // 백엔드 API 응답을 위한 생성자
+  factory Video.fromBackendApi(Map<String, dynamic> json) {
+    return Video(
+      id: json['youtube_id'] ?? json['id'] ?? '',
+      title: json['title'] ?? '',
+      thumbnail: json['thumbnail_url'] ?? '',
+      channelTitle: json['channel'] ?? '',
+      publishedAt: DateTime.now().toIso8601String(), // 백엔드에 publishedAt이 없으므로 현재 시간 사용
+    );
+  }
+
   /// Create Video from simple JSON (for cache deserialization)
   factory Video.fromCacheJson(Map<String, dynamic> json) {
     return Video(
