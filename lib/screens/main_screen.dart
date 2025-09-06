@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/video.dart';
@@ -48,6 +49,14 @@ class _MainScreenState extends State<MainScreen> {
     
     // 스크롤 리스너 추가
     _scrollController.addListener(_scrollListener);
+    
+    // 메인 화면에서는 항상 화면 회전 허용
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
   }
 
   @override
