@@ -20,12 +20,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   void initState() {
     super.initState();
     
-    // 테스트 모드에서는 더미 YouTube 비디오 ID 사용
     String videoId = widget.video.id;
-    if (videoId.startsWith('dummy_')) {
-      // 테스트용으로 실제 YouTube 영상 ID 사용 (Baby Shark)
-      videoId = 'XqZsoesa55w';
-    }
 
     _controller = YoutubePlayerController(
       initialVideoId: videoId,
