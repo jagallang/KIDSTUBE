@@ -1,6 +1,6 @@
-# 🎬 KidsTube v1.0.05
+# 🎬 KidsTube v1.0.06
 
-안전하고 교육적인 아이들을 위한 YouTube 앱 (완전 무제한 영상 스트림 & API 최적화)
+안전하고 교육적인 아이들을 위한 YouTube 앱 (가로 모드 최적화 & UI 개선)
 
 ![Flutter](https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white)
 ![Dart](https://img.shields.io/badge/Dart-0175C2?style=for-the-badge&logo=dart&logoColor=white)
@@ -8,7 +8,7 @@
 
 ## 📱 프로젝트 소개
 
-KidsTube는 부모가 아이들의 YouTube 시청을 안전하게 관리할 수 있는 Flutter 앱입니다. v1.0.05에서는 **완전 무제한 영상 스트림**과 **API 최적화**를 통해 진짜 끝없는 영상 탐험이 가능해졌습니다.
+KidsTube는 부모가 아이들의 YouTube 시청을 안전하게 관리할 수 있는 Flutter 앱입니다. v1.0.06에서는 **가로 모드 최적화**와 **반응형 UI 개선**으로 더욱 몰입감 있는 영상 시청 경험을 제공합니다.
 
 ## ✨ 주요 기능
 
@@ -331,6 +331,15 @@ lib/
 ---
 
 ## 🚀 버전 히스토리
+
+### v1.0.06 (2025-09-06) - Landscape Mode Optimization 📱
+- 🎬 **가로 모드 최적화**: 영상 재생 시 가로 모드에서 오버플로 문제 완전 해결
+- 📱 **반응형 레이아웃**: 화면 방향에 따른 적응형 UI 구현
+- 🎮 **전체 화면 몰입감**: 가로 모드에서 영상만 전체 화면으로 표시
+- 🎨 **UI/UX 개선**: 가로 모드에서 AppBar 제거, 플레이어 내 뒤로가기 버튼 추가
+- 📜 **스크롤 최적화**: SingleChildScrollView로 세로 모드 콘텐츠 스크롤 개선
+- 🐛 **버그 수정**: 다양한 기기에서 발생하는 레이아웃 오버플로 문제 해결
+- ⚡ **성능 향상**: 화면 전환 시 부드러운 애니메이션과 메모리 최적화
 
 ### v1.0.05 (2025-09-05) - Unlimited Stream Revolution ♾️
 - 🚀 **완전 무제한 스트림**: 영상 풀을 30개 → 100개로 대폭 확장, 진짜 끝없는 콘텐츠
