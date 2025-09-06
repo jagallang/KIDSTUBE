@@ -63,9 +63,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 화면 방향 확인
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+    
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
+      appBar: isLandscape ? null : AppBar(
         backgroundColor: Colors.red,
         foregroundColor: Colors.white,
         title: Text(
@@ -78,166 +81,200 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: Column(
-        children: [
-          // YouTube Player
-          Container(
-            color: Colors.black,
-            child: YoutubePlayer(
-              controller: _controller,
-              showVideoProgressIndicator: true,
-              progressIndicatorColor: Colors.red,
-              topActions: <Widget>[
-                const SizedBox(width: 8.0),
-                Expanded(
-                  child: Text(
-                    _controller.metadata.title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18.0,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
+      body: isLandscape 
+        ? Stack(
+            children: [
+              // 가로 모드에서는 YouTube Player만 전체 화면으로 표시
+              YoutubePlayer(
+                controller: _controller,
+                showVideoProgressIndicator: true,
+                progressIndicatorColor: Colors.red,
+                topActions: <Widget>[
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () => Navigator.pop(context),
                   ),
+                  const SizedBox(width: 8.0),
+                  Expanded(
+                    child: Text(
+                      _controller.metadata.title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18.0,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ),
+                ],
+                onReady: () {
+                  _isPlayerReady = true;
+                },
+              ),
+            ],
+          )
+        : Column(
+            children: [
+              // YouTube Player
+              Container(
+                color: Colors.black,
+                child: YoutubePlayer(
+                  controller: _controller,
+                  showVideoProgressIndicator: true,
+                  progressIndicatorColor: Colors.red,
+                  topActions: <Widget>[
+                    const SizedBox(width: 8.0),
+                    Expanded(
+                      child: Text(
+                        _controller.metadata.title,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18.0,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ),
+                  ],
+                  onReady: () {
+                    _isPlayerReady = true;
+                  },
                 ),
-              ],
-              onReady: () {
-                _isPlayerReady = true;
-              },
-            ),
-          ),
-          
-          // Video Info
-          Expanded(
-            child: Container(
-              color: Colors.white,
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Video Title
-                  Text(
-                    widget.video.title,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  
-                  const SizedBox(height: 8),
-                  
-                  // Channel Info
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 20,
-                        backgroundColor: Colors.red,
-                        child: Text(
-                          widget.video.channelTitle.substring(0, 1).toUpperCase(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              widget.video.channelTitle,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.black87,
-                              ),
-                            ),
-                            Text(
-                              _formatPublishedTime(widget.video.publishedAt),
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  
-                  const SizedBox(height: 24),
-                  
-                  // Action Buttons
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildActionButton(
-                        icon: Icons.thumb_up_outlined,
-                        label: '좋아요',
-                        onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('좋아요! 👍')),
-                          );
-                        },
-                      ),
-                      _buildActionButton(
-                        icon: Icons.favorite_outline,
-                        label: '즐겨찾기',
-                        onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('즐겨찾기에 추가됨! ⭐')),
-                          );
-                        },
-                      ),
-                      _buildActionButton(
-                        icon: Icons.share_outlined,
-                        label: '공유',
-                        onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('공유하기! 📤')),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                  
-                  const SizedBox(height: 24),
-                  
-                  // Description
-                  Container(
+              ),
+              
+              // Video Info
+              Expanded(
+                child: Container(
+                  color: Colors.white,
+                  child: SingleChildScrollView(
                     padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Video Title
+                    Text(
+                      widget.video.title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    
+                    const SizedBox(height: 8),
+                    
+                    // Channel Info
+                    Row(
                       children: [
-                        const Text(
-                          '영상 설명',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                        CircleAvatar(
+                          radius: 20,
+                          backgroundColor: Colors.red,
+                          child: Text(
+                            widget.video.channelTitle.substring(0, 1).toUpperCase(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '${widget.video.channelTitle}에서 제공하는 재미있고 교육적인 어린이 영상입니다. 안전한 콘텐츠로 아이들의 학습과 즐거움을 동시에 제공합니다. 🎬✨',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade700,
-                            height: 1.4,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                widget.video.channelTitle,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              Text(
+                                _formatPublishedTime(widget.video.publishedAt),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ],
+                    
+                    const SizedBox(height: 24),
+                    
+                    // Action Buttons
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _buildActionButton(
+                          icon: Icons.thumb_up_outlined,
+                          label: '좋아요',
+                          onTap: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('좋아요! 👍')),
+                            );
+                          },
+                        ),
+                        _buildActionButton(
+                          icon: Icons.favorite_outline,
+                          label: '즐겨찾기',
+                          onTap: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('즐겨찾기에 추가됨! ⭐')),
+                            );
+                          },
+                        ),
+                        _buildActionButton(
+                          icon: Icons.share_outlined,
+                          label: '공유',
+                          onTap: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('공유하기! 📤')),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                    
+                    const SizedBox(height: 24),
+                    
+                    // Description
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            '영상 설명',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '${widget.video.channelTitle}에서 제공하는 재미있고 교육적인 어린이 영상입니다. 안전한 콘텐츠로 아이들의 학습과 즐거움을 동시에 제공합니다. 🎬✨',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade700,
+                              height: 1.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

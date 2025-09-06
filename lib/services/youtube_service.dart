@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:math';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import '../models/channel.dart';
 import '../models/video.dart';
@@ -15,13 +16,44 @@ class YouTubeService {
   YouTubeService({required this.apiKey, CacheManager? cache}) 
     : _cache = cache ?? MemoryCacheManager(defaultTtl: const Duration(minutes: 30));
 
-  Future<List<Channel>> searchChannels(String query) async {
+  /// 네트워크 연결 상태 확인
+  Future<bool> checkNetworkConnection() async {
+    try {
+      final response = await http.get(
+        Uri.parse('https://www.google.com'),
+        headers: {'Connection': 'close'},
+      ).timeout(const Duration(seconds: 5));
+      
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Network check failed: $e');
+      return false;
+    }
+  }
+
+  Future<Map<String, dynamic>> searchChannels(String query) async {
     // 테스트 모드일 때 더미 데이터 반환
     if (apiKey == 'TEST_API_KEY') {
-      return _getDummyChannels(query);
+      return {
+        'success': true,
+        'channels': _getDummyChannels(query),
+        'message': 'Test mode - dummy data'
+      };
     }
     
     try {
+      print('🔍 Searching channels with query: $query');
+      
+      // 네트워크 연결 확인
+      final hasConnection = await checkNetworkConnection();
+      if (!hasConnection) {
+        return {
+          'success': false,
+          'channels': <Channel>[],
+          'message': '인터넷 연결을 확인해주세요\n네트워크에 연결되지 않았습니다'
+        };
+      }
+      
       // 1단계: 채널 검색
       final searchResponse = await http.get(
         Uri.parse('$baseUrl/search').replace(queryParameters: {
@@ -33,16 +65,57 @@ class YouTubeService {
         }),
       );
 
+      print('🌐 Search API Response: ${searchResponse.statusCode}');
+      
       if (searchResponse.statusCode != 200) {
-        print('Search API error: ${searchResponse.statusCode}');
-        return [];
+        final errorBody = searchResponse.body;
+        print('❌ Search API error body: $errorBody');
+        
+        String errorMessage = '검색 중 오류가 발생했습니다';
+        
+        if (searchResponse.statusCode == 403) {
+          try {
+            final errorData = json.decode(errorBody);
+            final error = errorData['error'];
+            if (error != null) {
+              if (error['message'].toString().contains('API_KEY_INVALID')) {
+                errorMessage = 'API 키가 올바르지 않습니다';
+              } else if (error['message'].toString().contains('QUOTA_EXCEEDED')) {
+                errorMessage = 'API 할당량이 초과되었습니다\n내일 다시 시도해주세요';
+              } else if (error['message'].toString().contains('ACCESS_NOT_CONFIGURED')) {
+                errorMessage = 'YouTube Data API가 활성화되지 않았습니다\nGoogle Cloud Console에서 활성화해주세요';
+              } else {
+                errorMessage = error['message'] ?? errorMessage;
+              }
+            }
+          } catch (e) {
+            print('Error parsing error response: $e');
+          }
+        } else if (searchResponse.statusCode == 400) {
+          errorMessage = '잘못된 검색 요청입니다';
+        } else if (searchResponse.statusCode >= 500) {
+          errorMessage = 'YouTube 서버 오류입니다\n잠시 후 다시 시도해주세요';
+        }
+        
+        return {
+          'success': false,
+          'channels': <Channel>[],
+          'message': errorMessage,
+          'statusCode': searchResponse.statusCode
+        };
       }
 
       final searchData = json.decode(searchResponse.body);
       final searchItems = searchData['items'] as List? ?? [];
       
+      print('📊 Found ${searchItems.length} search results');
+      
       if (searchItems.isEmpty) {
-        return [];
+        return {
+          'success': true,
+          'channels': <Channel>[],
+          'message': '검색 결과가 없습니다'
+        };
       }
 
       // 2단계: 채널 ID들 수집
@@ -63,8 +136,15 @@ class YouTubeService {
       }
 
       if (channelIds.isEmpty) {
-        return searchItems.map((item) => Channel.fromJson(item)).toList();
+        final basicChannels = searchItems.map((item) => Channel.fromJson(item)).toList();
+        return {
+          'success': true,
+          'channels': basicChannels,
+          'message': '기본 정보로 ${basicChannels.length}개 채널을 찾았습니다'
+        };
       }
+
+      print('🔗 Fetching detailed info for ${channelIds.length} channels');
 
       // 3단계: 채널 상세 정보 (구독자 수 포함) 가져오기
       final channelsResponse = await http.get(
@@ -78,21 +158,38 @@ class YouTubeService {
       if (channelsResponse.statusCode == 200) {
         final channelsData = json.decode(channelsResponse.body);
         final channelItems = channelsData['items'] as List? ?? [];
-        final channels = channelItems.map((item) => Channel.fromJson(item)).toList();
+        final allChannels = channelItems.map((item) => Channel.fromJson(item)).toList();
         
         // 구독자 수 1만명 이상인 채널만 필터링
-        return channels.where((channel) {
+        final filteredChannels = allChannels.where((channel) {
           final subscriberCount = _parseSubscriberCount(channel.subscriberCount);
           return subscriberCount >= 10000;
         }).toList();
+        
+        print('✅ Returning ${filteredChannels.length} channels (filtered from ${allChannels.length})');
+        
+        return {
+          'success': true,
+          'channels': filteredChannels,
+          'message': '${filteredChannels.length}개의 채널을 찾았습니다'
+        };
       } else {
-        print('Channels API error: ${channelsResponse.statusCode}');
+        print('⚠️ Channels API error: ${channelsResponse.statusCode}');
         // 구독자 수 없이라도 기본 정보 반환
-        return searchItems.map((item) => Channel.fromJson(item)).toList();
+        final basicChannels = searchItems.map((item) => Channel.fromJson(item)).toList();
+        return {
+          'success': true,
+          'channels': basicChannels,
+          'message': '기본 정보로 ${basicChannels.length}개 채널을 찾았습니다 (구독자 수 정보 없음)'
+        };
       }
     } catch (e) {
-      print('Error searching channels: $e');
-      return [];
+      print('💥 Exception searching channels: $e');
+      return {
+        'success': false,
+        'channels': <Channel>[],
+        'message': '네트워크 연결을 확인해주세요\n($e)'
+      };
     }
   }
 
@@ -338,36 +435,55 @@ class YouTubeService {
     return result;
   }
 
-  Future<bool> validateApiKey() async {
+  Future<Map<String, dynamic>> validateApiKey() async {
     // 테스트 모드는 항상 유효
     if (apiKey == 'TEST_API_KEY') {
-      return true;
+      return {'isValid': true, 'message': 'Test API Key'};
     }
     
     try {
-      // 더 단순한 API 호출로 검증 (channels API 사용)
+      // 더 간단한 API 호출로 검증 - search API 사용
       final response = await http.get(
-        Uri.parse('$baseUrl/channels').replace(queryParameters: {
+        Uri.parse('$baseUrl/search').replace(queryParameters: {
           'part': 'snippet',
-          'id': 'UC_x5XG1OV2P6uZZ5FSM9Ttw', // Google Developers 채널
+          'type': 'channel',
+          'q': 'YouTube',
+          'maxResults': '1',
           'key': apiKey,
         }),
       );
       
+      print('API Validation Response: ${response.statusCode}');
+      print('API Validation Body: ${response.body}');
+      
       if (response.statusCode == 200) {
-        return true;
+        return {'isValid': true, 'message': 'API Key is valid'};
       } else if (response.statusCode == 403) {
-        // API 키가 잘못되었거나 권한이 없는 경우
-        print('API Key validation failed: ${response.body}');
-        return false;
+        final responseBody = json.decode(response.body);
+        final error = responseBody['error'];
+        String message = 'API 키가 유효하지 않습니다';
+        
+        if (error != null) {
+          if (error['message'].toString().contains('API_KEY_INVALID')) {
+            message = 'API 키가 올바르지 않습니다';
+          } else if (error['message'].toString().contains('FORBIDDEN')) {
+            message = 'YouTube Data API가 활성화되지 않았거나\n권한이 없습니다';
+          } else if (error['message'].toString().contains('QUOTA_EXCEEDED')) {
+            message = 'API 할당량이 초과되었습니다\n내일 다시 시도해주세요';
+          } else {
+            message = error['message'] ?? message;
+          }
+        }
+        
+        return {'isValid': false, 'message': message};
+      } else if (response.statusCode == 400) {
+        return {'isValid': false, 'message': '잘못된 API 요청입니다\nAPI 키를 확인해주세요'};
       } else {
-        // 다른 오류
-        print('API validation error: ${response.statusCode} - ${response.body}');
-        return false;
+        return {'isValid': false, 'message': 'API 검증 중 오류가 발생했습니다\n(${response.statusCode})'};
       }
     } catch (e) {
       print('API validation exception: $e');
-      return false;
+      return {'isValid': false, 'message': '네트워크 연결을 확인해주세요'};
     }
   }
 

@@ -51,28 +51,38 @@ class _ApiSettingsScreenState extends State<ApiSettingsScreen> {
       _isValidKey = null;
     });
 
-    // API 키 유효성 검증
-    final youtubeService = YouTubeService(apiKey: apiKey);
-    final isValid = await youtubeService.validateApiKey();
+    try {
+      // API 키 유효성 검증
+      final youtubeService = YouTubeService(apiKey: apiKey);
+      final validationResult = await youtubeService.validateApiKey();
 
-    if (mounted) {
-      setState(() {
-        _isValidating = false;
-        _isValidKey = isValid;
-      });
+      if (mounted) {
+        setState(() {
+          _isValidating = false;
+          _isValidKey = validationResult['isValid'];
+        });
 
-      if (isValid) {
-        await StorageService.saveApiKey(apiKey);
-        await _loadSavedApiKey();
-        _apiKeyController.clear();
-        _showSnackBar('API 키가 저장되었습니다', isError: false);
-      } else {
+        if (validationResult['isValid']) {
+          await StorageService.saveApiKey(apiKey);
+          await _loadSavedApiKey();
+          _apiKeyController.clear();
+          _showSnackBar('API 키가 저장되었습니다', isError: false);
+        } else {
+          _showSnackBar(
+            validationResult['message'] ?? 'API 키 검증에 실패했습니다',
+            isError: true
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isValidating = false;
+          _isValidKey = false;
+        });
+        
         _showSnackBar(
-          'API 키 검증 실패:\n'
-          '• API 할당량 초과 가능성 (일일 10,000 단위)\n'
-          '• YouTube Data API v3 활성화 확인\n'
-          '• API 키 권한 설정 확인\n'
-          '• 내일 다시 시도하거나 "TEST_API_KEY" 사용',
+          '네트워크 오류가 발생했습니다.\n인터넷 연결을 확인해주세요.',
           isError: true
         );
       }

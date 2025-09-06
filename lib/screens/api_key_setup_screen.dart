@@ -16,6 +16,11 @@ class _ApiKeySetupScreenState extends State<ApiKeySetupScreen> {
   bool _isValidating = false;
   String? _errorMessage;
 
+  bool _isValidApiKeyFormat(String apiKey) {
+    // YouTube API 키는 보통 'AIza'로 시작하고 39자리
+    return apiKey.startsWith('AIza') && apiKey.length == 39;
+  }
+
   Future<void> _validateAndSave() async {
     final apiKey = _controller.text.trim();
     if (apiKey.isEmpty) {
@@ -25,26 +30,43 @@ class _ApiKeySetupScreenState extends State<ApiKeySetupScreen> {
       return;
     }
 
+    // API 키 형식 검증
+    if (!_isValidApiKeyFormat(apiKey)) {
+      setState(() {
+        _errorMessage = '올바르지 않은 API 키 형식입니다\n(AIza로 시작하는 39자리여야 합니다)';
+      });
+      return;
+    }
+
     setState(() {
       _isValidating = true;
       _errorMessage = null;
     });
 
-    final service = YouTubeService(apiKey: apiKey);
-    final isValid = await service.validateApiKey();
+    try {
+      final service = YouTubeService(apiKey: apiKey);
+      final validationResult = await service.validateApiKey();
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    if (isValid) {
-      await StorageService.saveApiKey(apiKey);
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => PinSetupScreen(apiKey: apiKey)),
-      );
-    } else {
+      if (validationResult['isValid']) {
+        await StorageService.saveApiKey(apiKey);
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => PinSetupScreen(apiKey: apiKey)),
+        );
+      } else {
+        setState(() {
+          _isValidating = false;
+          _errorMessage = validationResult['message'] ?? '유효하지 않은 API 키입니다';
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
       setState(() {
         _isValidating = false;
-        _errorMessage = '유효하지 않은 API 키입니다';
+        _errorMessage = '네트워크 오류가 발생했습니다.\n인터넷 연결을 확인해주세요.';
       });
     }
   }

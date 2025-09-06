@@ -71,16 +71,19 @@ class _ChannelManagementScreenState extends State<ChannelManagementScreen> {
     // 각 인기 채널명으로 검색해서 채널 정보 가져오기
     for (String channelName in _popularChannelNames.take(10)) {
       try {
-        final searchResults = await _youtubeService.searchChannels(channelName);
-        if (searchResults.isNotEmpty) {
-          // 구독자 수 1만명 이상인 채널만 추가
-          final filteredChannels = searchResults.where((channel) {
-            final subscriberCount = _parseSubscriberCount(channel.subscriberCount);
-            return subscriberCount >= 10000;
-          }).toList();
-          
-          if (filteredChannels.isNotEmpty) {
-            channels.add(filteredChannels.first);
+        final searchResult = await _youtubeService.searchChannels(channelName);
+        if (searchResult['success'] == true) {
+          final searchResults = searchResult['channels'] as List<Channel>;
+          if (searchResults.isNotEmpty) {
+            // 구독자 수 1만명 이상인 채널만 추가
+            final filteredChannels = searchResults.where((channel) {
+              final subscriberCount = _parseSubscriberCount(channel.subscriberCount);
+              return subscriberCount >= 10000;
+            }).toList();
+            
+            if (filteredChannels.isNotEmpty) {
+              channels.add(filteredChannels.first);
+            }
           }
         }
         // API 호출 제한을 피하기 위한 지연
@@ -111,12 +114,50 @@ class _ChannelManagementScreenState extends State<ChannelManagementScreen> {
       _hasSearched = true;
     });
 
-    final results = await _youtubeService.searchChannels(query);
-
-    setState(() {
-      _searchResults = results;
-      _isSearching = false;
-    });
+    try {
+      final searchResult = await _youtubeService.searchChannels(query);
+      
+      if (!mounted) return;
+      
+      setState(() {
+        _searchResults = searchResult['channels'] as List<Channel>;
+        _isSearching = false;
+      });
+      
+      // 에러 메시지가 있으면 스낵바로 표시
+      if (!searchResult['success'] || (searchResult['message'] as String).contains('오류')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(searchResult['message'] ?? '검색 중 오류가 발생했습니다'),
+            backgroundColor: searchResult['success'] ? Colors.orange : Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      } else if (_searchResults.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(searchResult['message'] ?? '검색 결과가 없습니다'),
+            backgroundColor: Colors.blue,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      
+      setState(() {
+        _searchResults = [];
+        _isSearching = false;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('네트워크 오류: $e'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
   }
 
   Future<void> _addChannel(Channel channel) async {
@@ -166,13 +207,6 @@ class _ChannelManagementScreenState extends State<ChannelManagementScreen> {
   }
 
   Future<void> _completeSetup() async {
-    if (_subscribedChannels.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('최소 1개 이상의 채널을 추가해주세요')),
-      );
-      return;
-    }
-
     await StorageService.setSetupComplete(true);
     
     if (!mounted) return;
